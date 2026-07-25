@@ -1,1 +1,3 @@
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/SmartObservabilityPluginTest.java
+/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/correlate/CorrelationEngineTest.java
+/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/splunk/SplunkSearchClientTest.java

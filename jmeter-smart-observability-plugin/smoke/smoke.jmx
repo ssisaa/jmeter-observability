@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Smart-Observability-Smoke" enabled="true">
+      <stringProp name="TestPlan.comments"></stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="tg" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="lc" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">5</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">2</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="synthetic-login" enabled="true">
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="script">
+            SampleResult.setResponseData("ok", "UTF-8");
+            SampleResult.setResponseCode("200");
+            SampleResult.setSuccessful(true);
+            SampleResult.setSentBytes(128L);
+            Thread.sleep(20 + (long)(Math.random() * 30));
+          </stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="synthetic-checkout" enabled="true">
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="script">
+            SampleResult.setResponseData("err", "UTF-8");
+            SampleResult.setResponseCode("500");
+            SampleResult.setSuccessful(false);
+            SampleResult.setSentBytes(256L);
+            Thread.sleep(40 + (long)(Math.random() * 40));
+          </stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <BackendListener guiclass="BackendListenerGui" testclass="BackendListener" testname="Smart Observability Backend Listener" enabled="true">
+          <elementProp name="arguments" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="Splunk_URL" elementType="Argument">
+                <stringProp name="Argument.name">Splunk_URL</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Splunk_Token" elementType="Argument">
+                <stringProp name="Argument.name">Splunk_Token</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Splunk_Index" elementType="Argument">
+                <stringProp name="Argument.name">Splunk_Index</stringProp>
+                <stringProp name="Argument.value">performance</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Environment" elementType="Argument">
+                <stringProp name="Argument.name">Environment</stringProp>
+                <stringProp name="Argument.value">smoke</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Application" elementType="Argument">
+                <stringProp name="Argument.name">Application</stringProp>
+                <stringProp name="Argument.value">smoke-app</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Test_Name" elementType="Argument">
+                <stringProp name="Argument.name">Test_Name</stringProp>
+                <stringProp name="Argument.value">smoke-run</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Local_Store_Path" elementType="Argument">
+                <stringProp name="Argument.name">Local_Store_Path</stringProp>
+                <stringProp name="Argument.value">/tmp/smoke-out/jmeter-metrics.json</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Enable_Splunk" elementType="Argument">
+                <stringProp name="Argument.name">Enable_Splunk</stringProp>
+                <stringProp name="Argument.value">false</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Enable_Local_Store" elementType="Argument">
+                <stringProp name="Argument.name">Enable_Local_Store</stringProp>
+                <stringProp name="Argument.value">true</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Splunk_Search_URL" elementType="Argument">
+                <stringProp name="Argument.name">Splunk_Search_URL</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Splunk_Search_Token" elementType="Argument">
+                <stringProp name="Argument.name">Splunk_Search_Token</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Splunk_Log_Index" elementType="Argument">
+                <stringProp name="Argument.name">Splunk_Log_Index</stringProp>
+                <stringProp name="Argument.value">app</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Enable_Correlation" elementType="Argument">
+                <stringProp name="Argument.name">Enable_Correlation</stringProp>
+                <stringProp name="Argument.value">true</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Correlation_Window_Seconds" elementType="Argument">
+                <stringProp name="Argument.name">Correlation_Window_Seconds</stringProp>
+                <stringProp name="Argument.value">30</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Correlation_Output_Path" elementType="Argument">
+                <stringProp name="Argument.name">Correlation_Output_Path</stringProp>
+                <stringProp name="Argument.value">/tmp/smoke-out/log-correlation.json</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="classname">com.smartjmeter.SmartObservabilityBackendListener</stringProp>
+          <intProp name="QUEUE_SIZE">5000</intProp>
+        </BackendListener>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

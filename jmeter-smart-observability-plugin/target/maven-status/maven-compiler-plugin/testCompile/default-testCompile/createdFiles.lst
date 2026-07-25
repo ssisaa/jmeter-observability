@@ -1,1 +1,3 @@
+com/smartjmeter/correlate/CorrelationEngineTest.class
 com/smartjmeter/SmartObservabilityPluginTest.class
+com/smartjmeter/splunk/SplunkSearchClientTest.class
