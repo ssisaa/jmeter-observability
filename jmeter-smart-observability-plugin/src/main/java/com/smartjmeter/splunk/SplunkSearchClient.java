@@ -2,6 +2,7 @@ package com.smartjmeter.splunk;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartjmeter.util.HttpClientFactory;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -43,11 +44,13 @@ public class SplunkSearchClient {
     private long maxWaitMs = 30_000;
 
     public SplunkSearchClient(String baseUrl, String token) {
+        this(baseUrl, token, false);
+    }
+
+    public SplunkSearchClient(String baseUrl, String token, boolean insecureTls) {
         this.baseUrl = stripTrailingSlash(baseUrl);
         this.token = token;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = HttpClientFactory.create(insecureTls);
     }
 
     public SplunkSearchClient withBearer(String scheme) {
@@ -105,8 +108,9 @@ public class SplunkSearchClient {
             String sid = createJob(spl);
             if (sid == null) return Collections.emptyList();
             if (!waitForCompletion(sid)) {
-                LOG.log(Level.WARNING, "Splunk search job {0} did not finish within {1}ms",
+                LOG.log(Level.WARNING, "Splunk search job {0} did not finish within {1}ms - cancelling",
                         new Object[]{sid, maxWaitMs});
+                cancelJob(sid);
                 return Collections.emptyList();
             }
             return fetchResults(sid);
@@ -197,5 +201,30 @@ public class SplunkSearchClient {
     private static String stripTrailingSlash(String s) {
         if (s == null) return "";
         return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
+    }
+
+    /**
+     * Best-effort cancellation of a still-running search job. Splunk
+     * accepts {@code DELETE /services/search/jobs/{sid}} to abort it and
+     * free head resources. Errors are logged and swallowed.
+     */
+    void cancelJob(String sid) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/services/search/jobs/" + sid))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Authorization", authScheme + " " + token)
+                    .DELETE()
+                    .build();
+            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() >= 300) {
+                LOG.log(Level.WARNING, "Splunk cancel-job {0}: {1}",
+                        new Object[]{resp.statusCode(), resp.body()});
+            } else {
+                LOG.log(Level.INFO, "Cancelled Splunk search job {0}", sid);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to cancel Splunk search job " + sid, e);
+        }
     }
 }

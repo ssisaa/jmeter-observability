@@ -2,6 +2,7 @@ package com.smartjmeter.splunk;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartjmeter.model.JMeterMetric;
+import com.smartjmeter.util.HttpClientFactory;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -30,16 +31,18 @@ public class SplunkHECClient {
     private final HttpClient httpClient;
 
     public SplunkHECClient(String url, String token) {
-        this(url, token, "performance");
+        this(url, token, "performance", false);
     }
 
     public SplunkHECClient(String url, String token, String index) {
+        this(url, token, index, false);
+    }
+
+    public SplunkHECClient(String url, String token, String index, boolean insecureTls) {
         this.url = url;
         this.token = token;
         this.index = index;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = HttpClientFactory.create(insecureTls);
     }
 
     /**

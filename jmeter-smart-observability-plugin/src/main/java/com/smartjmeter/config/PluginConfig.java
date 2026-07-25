@@ -23,6 +23,7 @@ public class PluginConfig {
     public static final String PARAM_HEC_BATCH_SIZE = "HEC_Batch_Size";
     public static final String PARAM_HEC_FLUSH_INTERVAL_MS = "HEC_Flush_Interval_Ms";
     public static final String PARAM_HEC_QUEUE_CAPACITY = "HEC_Queue_Capacity";
+    public static final String PARAM_TLS_INSECURE = "TLS_Insecure";
 
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
@@ -61,6 +62,7 @@ public class PluginConfig {
     private final int hecBatchSize;
     private final long hecFlushIntervalMs;
     private final int hecQueueCapacity;
+    private final boolean tlsInsecure;
 
     private final String splunkSearchUrl;
     private final String splunkSearchToken;
@@ -97,6 +99,7 @@ public class PluginConfig {
         this.hecBatchSize = b.hecBatchSize;
         this.hecFlushIntervalMs = b.hecFlushIntervalMs;
         this.hecQueueCapacity = b.hecQueueCapacity;
+        this.tlsInsecure = b.tlsInsecure;
         this.splunkSearchUrl = b.splunkSearchUrl;
         this.splunkSearchToken = b.splunkSearchToken;
         this.splunkLogIndex = b.splunkLogIndex;
@@ -132,6 +135,7 @@ public class PluginConfig {
                 .hecBatchSize((int) parseLong(ctx.getParameter(PARAM_HEC_BATCH_SIZE, "100"), 100))
                 .hecFlushIntervalMs(parseLong(ctx.getParameter(PARAM_HEC_FLUSH_INTERVAL_MS, "1000"), 1000))
                 .hecQueueCapacity((int) parseLong(ctx.getParameter(PARAM_HEC_QUEUE_CAPACITY, "10000"), 10000))
+                .tlsInsecure(Boolean.parseBoolean(ctx.getParameter(PARAM_TLS_INSECURE, "false")))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -184,6 +188,7 @@ public class PluginConfig {
     public int getHecBatchSize() { return hecBatchSize; }
     public long getHecFlushIntervalMs() { return hecFlushIntervalMs; }
     public int getHecQueueCapacity() { return hecQueueCapacity; }
+    public boolean isTlsInsecure() { return tlsInsecure; }
     public String getSplunkSearchUrl() { return splunkSearchUrl; }
     public String getSplunkSearchToken() { return splunkSearchToken; }
     public String getSplunkLogIndex() { return splunkLogIndex; }
@@ -217,6 +222,7 @@ public class PluginConfig {
         private int hecBatchSize = 100;
         private long hecFlushIntervalMs = 1000;
         private int hecQueueCapacity = 10_000;
+        private boolean tlsInsecure = false;
         private String splunkSearchUrl = "";
         private String splunkSearchToken = "";
         private String splunkLogIndex = "app";
@@ -249,6 +255,7 @@ public class PluginConfig {
         public Builder hecBatchSize(int v) { this.hecBatchSize = v; return this; }
         public Builder hecFlushIntervalMs(long v) { this.hecFlushIntervalMs = v; return this; }
         public Builder hecQueueCapacity(int v) { this.hecQueueCapacity = v; return this; }
+        public Builder tlsInsecure(boolean v) { this.tlsInsecure = v; return this; }
         public Builder splunkSearchUrl(String v) { this.splunkSearchUrl = v; return this; }
         public Builder splunkSearchToken(String v) { this.splunkSearchToken = v; return this; }
         public Builder splunkLogIndex(String v) { this.splunkLogIndex = v; return this; }

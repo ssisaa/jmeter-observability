@@ -12,9 +12,7 @@ import com.smartjmeter.report.ReportGenerator;
 import com.smartjmeter.splunk.AsyncBatchingHECClient;
 import com.smartjmeter.splunk.SplunkHECClient;
 import com.smartjmeter.splunk.SplunkSearchClient;
-import com.smartjmeter.store.LocalJsonStore;
-
-import org.apache.jmeter.config.Arguments;
+import com.smartjmeter.store.LocalJsonStore;import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.visualizers.backend.AbstractBackendListenerClient;
 import org.apache.jmeter.visualizers.backend.BackendListenerContext;
@@ -71,6 +69,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_HEC_BATCH_SIZE, "100");
         args.addArgument(PluginConfig.PARAM_HEC_FLUSH_INTERVAL_MS, "1000");
         args.addArgument(PluginConfig.PARAM_HEC_QUEUE_CAPACITY, "10000");
+        args.addArgument(PluginConfig.PARAM_TLS_INSECURE, "false");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -109,12 +108,14 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                         config.getSplunkIndex(),
                         config.getHecBatchSize(),
                         config.getHecFlushIntervalMs(),
-                        config.getHecQueueCapacity());
+                        config.getHecQueueCapacity(),
+                        config.isTlsInsecure());
             } else {
                 this.splunk = new SplunkHECClient(
                         config.getSplunkUrl(),
                         config.getSplunkToken(),
-                        config.getSplunkIndex());
+                        config.getSplunkIndex(),
+                        config.isTlsInsecure());
             }
         }
         if (config.isLocalStoreEnabled()) {
@@ -162,7 +163,20 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             Map<String, Object> correlation = runCorrelation();
             Map<String, List<Map<String, Object>>> o11y = runO11yFetch(aggregate);
             String analysis = runAnalysis(aggregate, correlation, o11y);
-            new ReportGenerator().generate(analysis);
+            ReportGenerator.Context reportCtx = new ReportGenerator.Context.Builder()
+                    .testName(config.getTestName())
+                    .environment(config.getEnvironment())
+                    .application(config.getApplication())
+                    .startMs(extractLong(aggregate, "start_ms", 0))
+                    .stopMs(extractLong(aggregate, "stop_ms", 0))
+                    .aggregate(aggregate)
+                    .correlation(correlation)
+                    .o11yMetrics(o11y)
+                    .llmAnalysis(analysis)
+                    .llmProvider(config.isLlmEnabled() ? config.getLlmProvider() : null)
+                    .llmModel(config.isLlmEnabled() ? config.getLlmModel() : null)
+                    .build();
+            new ReportGenerator().generate(reportCtx, ReportGenerator.DEFAULT_REPORT_PATH);
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Teardown analysis pipeline failed", e);
         }
@@ -184,7 +198,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         }
         SplunkSearchClient search = new SplunkSearchClient(
                 config.getSplunkSearchUrl(),
-                config.getSplunkSearchToken());
+                config.getSplunkSearchToken(),
+                config.isTlsInsecure());
         CorrelationEngine engine = new CorrelationEngine(config.getCorrelationWindowSeconds());
         List<CorrelationEngine.TimeWindow> windows = engine.buildFailureWindows(failures);
         List<Map<String, Object>> windowResults = new ArrayList<>();
@@ -217,7 +232,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         if (stop <= start) stop = start + 60_000;
 
         SplunkO11yMetricsClient client = new SplunkO11yMetricsClient(
-                config.getO11yUrl(), config.getO11yToken())
+                config.getO11yUrl(), config.getO11yToken(), config.isTlsInsecure())
                 .withResolutionMs(config.getO11yResolutionMs());
         Map<String, List<Map<String, Object>>> out = client.fetchAll(metrics, start, stop);
         writeJson(config.getO11yOutputPath(), out);

@@ -2,6 +2,7 @@ package com.smartjmeter.o11y;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartjmeter.util.HttpClientFactory;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -47,11 +48,13 @@ public class SplunkO11yMetricsClient {
     private long resolutionMs = 10_000;
 
     public SplunkO11yMetricsClient(String baseUrl, String token) {
+        this(baseUrl, token, false);
+    }
+
+    public SplunkO11yMetricsClient(String baseUrl, String token, boolean insecureTls) {
         this.baseUrl = stripTrailingSlash(baseUrl);
         this.token = token;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = HttpClientFactory.create(insecureTls);
     }
 
     public SplunkO11yMetricsClient withResolutionMs(long ms) {

@@ -1,26 +1,96 @@
-<html>
-  <head>
-    <title>AI Performance Report</title>
-  </head>
-  <body>
-    <h1>AI Performance Report</h1>
-    <h2>Analysis</h2>
-    <pre>1. Executive Summary
-The performance test showed a high error rate of 0.5, with 10 out of 20 samples failing. The average response time was 105ms.
-
-2. Key Findings
-* High error rate of 0.5
-* All "synthetic-checkout" transactions failed
-* "synthetic-login" transactions had a high average response time of 145ms
-* No correlated log events were found in the Splunk log windows
-
-3. Probable Root Causes
-1. **synthetic-checkout transaction issue** (evidence: 100% error rate for "synthetic-checkout" transactions in Aggregate Sample Summary)
-2. **insufficient data** for other probable root causes due to lack of correlated log events and empty infrastructure telemetry metrics
-
-4. Recommended Actions
-1. **Investigate and fix the synthetic-checkout transaction issue** (high priority)
-2. **Collect and analyze correlated log events** to identify potential root causes (medium priority)
-3. **Collect and analyze infrastructure telemetry metrics** to identify potential performance bottlenecks (medium priority)</pre>
-  </body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>AI Performance Report</title><style>:root {
+  --bg: #0f172a;
+  --card: #ffffff;
+  --card-alt: #f8fafc;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #4f46e5;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --code-bg: #f1f5f9;
+  --shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  color: var(--ink);
+  background: #f1f5f9;
+  line-height: 1.5;
+}
+header.hero {
+  background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%);
+  color: #fff;
+  padding: 32px 40px 24px;
+}
+header.hero .tag {
+  display: inline-block;
+  background: rgba(255,255,255,.15);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+header.hero h1 { margin: 0 0 12px; font-size: 28px; font-weight: 600; }
+header.hero .meta {
+  display: flex; flex-wrap: wrap; gap: 8px 24px;
+  font-size: 13px; color: rgba(255,255,255,.85);
+}
+header.hero .meta b { color: #fff; font-weight: 500; }
+section { margin: 24px 40px; }
+section.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+}
+section.card h2 {
+  margin: 0 0 16px; font-size: 16px; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
+}
+section.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.kpi {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent);
+}
+.kpi-ok { border-left-color: var(--ok); }
+.kpi-warn { border-left-color: var(--warn); }
+.kpi-danger { border-left-color: var(--danger); }
+.kpi-value { font-size: 22px; font-weight: 600; }
+.kpi-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+tr.row-danger td:first-child { color: var(--danger); font-weight: 600; }
+.pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill {
+  background: var(--card-alt); border: 1px solid var(--line);
+  padding: 6px 12px; border-radius: 999px; font-size: 13px;
+}
+.pill b { color: var(--muted); font-weight: 500; margin-right: 4px; }
+.muted { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.analysis .provider { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.analysis code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 90%; }
+.analysis-body h1, .analysis-body h2, .analysis-body h3, .analysis-body h4 {
+  margin: 18px 0 8px; line-height: 1.3;
+}
+.analysis-body h1 { font-size: 18px; }
+.analysis-body h2 { font-size: 16px; color: var(--accent); }
+.analysis-body h3 { font-size: 14px; }
+.analysis-body ul, .analysis-body ol { padding-left: 22px; margin: 8px 0; }
+.analysis-body li { margin: 4px 0; }
+.analysis-body p { margin: 8px 0; }
+.analysis-body strong { color: var(--ink); }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0 32px; }
+</style></head><body><header class="hero"><div class="tag">Smart Observability AI</div><h1>AI Performance Report</h1><div class="meta"><span><b>Test:</b> smoke-run</span><span><b>Environment:</b> smoke</span><span><b>Application:</b> smoke-app</span><span><b>Started:</b> 2026-07-25 16:01:37 UTC</span><span><b>Stopped:</b> 2026-07-25 16:01:38 UTC</span><span><b>Generated:</b> 2026-07-25 16:01:40 UTC</span></div></header><section class="kpis"><div class="kpi"><div class="kpi-value">20</div><div class="kpi-label">Samples</div></div><div class="kpi kpi-danger"><div class="kpi-value">10</div><div class="kpi-label">Errors</div></div><div class="kpi kpi-danger"><div class="kpi-value">50.00%</div><div class="kpi-label">Error Rate</div></div><div class="kpi"><div class="kpi-value">106 ms</div><div class="kpi-label">Avg RT</div></div><div class="kpi"><div class="kpi-value">327 ms</div><div class="kpi-label">P95 RT</div></div><div class="kpi"><div class="kpi-value">834 ms</div><div class="kpi-label">Max RT</div></div><div class="kpi"><div class="kpi-value">15.71/s</div><div class="kpi-label">Throughput</div></div></section><section class="card"><h2>Per-transaction Summary</h2><table><thead><tr><th>Transaction</th><th>Count</th><th>Errors</th><th>Error %</th><th>Min</th><th>Avg</th><th>P95</th><th>Max</th></tr></thead><tbody><tr class="row-danger"><td>synthetic-checkout</td><td>10</td><td>10</td><td>100.00%</td><td>42 ms</td><td>69 ms</td><td>119 ms</td><td>119 ms</td></tr><tr><td>synthetic-login</td><td>10</td><td>0</td><td>0.00%</td><td>25 ms</td><td>143 ms</td><td>834 ms</td><td>834 ms</td></tr></tbody></table></section><section class="card"><h2>Splunk Log Correlation</h2><div class="pill-row"><span class="pill"><b>Failed samples:</b> 10</span><span class="pill"><b>Window:</b> ±30s</span><span class="pill"><b>Merged windows:</b> 1</span><span class="pill"><b>Correlated events:</b> 0</span></div><p class="muted">No log events found in the correlation windows.</p></section><section class="card"><h2>Splunk Observability Cloud Metrics</h2><table><thead><tr><th>Metric</th><th>Points</th></tr></thead><tbody><tr><td>cpu.utilization</td><td>0</td></tr><tr><td>memory.utilization</td><td>0</td></tr><tr><td>jvm.gc.collection.count</td><td>0</td></tr><tr><td>jvm.threads.count</td><td>0</td></tr><tr><td>db.latency</td><td>0</td></tr><tr><td>k8s.pod.cpu.usage</td><td>0</td></tr></tbody></table></section><section class="card analysis"><h2>AI Root Cause Analysis</h2><div class="provider">Provider: <code>groq</code> &middot; Model: <code>llama-3.3-70b-versatile</code></div><div class="analysis-body"><h2>Executive Summary</h2><p>The performance test revealed a high error rate of 0.5, with 10 out of 20 samples failing. The average response time was 106ms, with a maximum of 834ms.</p><h2>Key Findings</h2><ul><li>High error rate of 0.5</li><li>All 10 &quot;synthetic-checkout&quot; transactions failed</li><li>&quot;synthetic-login&quot; transactions had a high maximum response time of 834ms</li><li>No correlated log events were found in the Splunk log windows</li></ul><h2>Probable Root Causes</h2><ol><li><strong>Issue with &quot;synthetic-checkout&quot; transaction</strong> (evidence: 100% error rate for this transaction in Aggregate Sample Summary)</li><li><strong>Insufficient data</strong> for infrastructure telemetry and correlated log windows, making it difficult to identify other potential root causes</li></ol><h2>Recommended Actions</h2><ol><li><strong>Investigate the &quot;synthetic-checkout&quot; transaction</strong> to identify the cause of the 100% error rate</li><li><strong>Collect more data</strong> for infrastructure telemetry and correlated log windows to gain a better understanding of the system's behavior during the performance test</li><li><strong>Rerun the performance test</strong> with additional logging and monitoring to gather more information about the failures and system performance</li></ol></div></section><footer>Generated by JMeter Smart Observability AI Plugin v1.0.0</footer></body></html>

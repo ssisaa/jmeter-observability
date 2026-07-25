@@ -2,6 +2,7 @@ package com.smartjmeter.splunk;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartjmeter.model.JMeterMetric;
+import com.smartjmeter.util.HttpClientFactory;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -54,15 +55,19 @@ public class AsyncBatchingHECClient implements AutoCloseable {
 
     public AsyncBatchingHECClient(String url, String token, String index,
                                   int batchSize, long flushIntervalMs, int queueCapacity) {
+        this(url, token, index, batchSize, flushIntervalMs, queueCapacity, false);
+    }
+
+    public AsyncBatchingHECClient(String url, String token, String index,
+                                  int batchSize, long flushIntervalMs, int queueCapacity,
+                                  boolean insecureTls) {
         this.url = url;
         this.token = token;
         this.index = index;
         this.batchSize = Math.max(1, batchSize);
         this.flushIntervalMs = Math.max(50, flushIntervalMs);
         this.queue = new LinkedBlockingQueue<>(Math.max(1000, queueCapacity));
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = HttpClientFactory.create(insecureTls);
         this.worker = new Thread(this::runLoop, "smart-o11y-hec-batcher");
         this.worker.setDaemon(true);
         this.worker.start();
