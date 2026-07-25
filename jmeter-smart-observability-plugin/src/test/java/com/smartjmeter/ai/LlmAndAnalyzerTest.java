@@ -113,8 +113,11 @@ class LlmAndAnalyzerTest {
     void promptBuilderIncludesAllThreeSections() {
         String p = PromptBuilder.buildUserPrompt(
                 Map.of("count", 10),
+                null, null, List.of(),
                 Map.of("failure_count", 2),
-                Map.of("cpu.utilization", List.of(Map.of("ts", 1L, "value", 80))));
+                Map.of("windows", List.of()),
+                Map.of("cpu.utilization", List.of(Map.of("ts", 1L, "value", 80))),
+                Map.of(), Map.of());
         assertTrue(p.contains("Aggregate Sample Summary"));
         assertTrue(p.contains("Correlated Splunk Log Windows"));
         assertTrue(p.contains("Splunk Observability Cloud Metrics"));

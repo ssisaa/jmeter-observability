@@ -34,6 +34,18 @@ public class PluginConfig {
     public static final String PARAM_BASELINE_PATH = "Baseline_Path";
     public static final String PARAM_BASELINE_UPDATE_MODE = "Baseline_Update_Mode";
 
+    // Phase 8 - Enterprise report
+    public static final String PARAM_SLA_P95_MS = "SLA_P95_Ms";
+    public static final String PARAM_APDEX_TARGET_MS = "Apdex_Target_Ms";
+    public static final String PARAM_REGRESSION_THRESHOLD_PCT = "Regression_Threshold_Pct";
+    public static final String PARAM_ENABLE_CLOUDWATCH = "Enable_CloudWatch";
+    public static final String PARAM_CLOUDWATCH_REGION = "CloudWatch_Region";
+    public static final String PARAM_CLOUDWATCH_METRICS_JSON = "CloudWatch_Metrics_Json";
+    public static final String PARAM_CLOUDWATCH_ALARMS = "CloudWatch_Alarms";
+    public static final String PARAM_CLOUDWATCH_OUTPUT_PATH = "CloudWatch_Output_Path";
+    public static final String PARAM_JSON_REPORT_PATH = "Json_Report_Path";
+    public static final String PARAM_CSV_REPORT_PATH = "Csv_Report_Path";
+
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
     public static final String PARAM_SPLUNK_SEARCH_TOKEN = "Splunk_Search_Token";
@@ -77,6 +89,16 @@ public class PluginConfig {
     private final boolean baselineDiffEnabled;
     private final String baselinePath;
     private final String baselineUpdateMode;
+    private final long slaP95Ms;
+    private final long apdexTargetMs;
+    private final double regressionThresholdPct;
+    private final boolean cloudwatchEnabled;
+    private final String cloudwatchRegion;
+    private final String cloudwatchMetricsJson;
+    private final String cloudwatchAlarms;
+    private final String cloudwatchOutputPath;
+    private final String jsonReportPath;
+    private final String csvReportPath;
 
     private final String splunkSearchUrl;
     private final String splunkSearchToken;
@@ -119,6 +141,16 @@ public class PluginConfig {
         this.baselineDiffEnabled = b.baselineDiffEnabled;
         this.baselinePath = b.baselinePath;
         this.baselineUpdateMode = b.baselineUpdateMode;
+        this.slaP95Ms = b.slaP95Ms;
+        this.apdexTargetMs = b.apdexTargetMs;
+        this.regressionThresholdPct = b.regressionThresholdPct;
+        this.cloudwatchEnabled = b.cloudwatchEnabled;
+        this.cloudwatchRegion = b.cloudwatchRegion;
+        this.cloudwatchMetricsJson = b.cloudwatchMetricsJson;
+        this.cloudwatchAlarms = b.cloudwatchAlarms;
+        this.cloudwatchOutputPath = b.cloudwatchOutputPath;
+        this.jsonReportPath = b.jsonReportPath;
+        this.csvReportPath = b.csvReportPath;
         this.splunkSearchUrl = b.splunkSearchUrl;
         this.splunkSearchToken = b.splunkSearchToken;
         this.splunkLogIndex = b.splunkLogIndex;
@@ -160,6 +192,16 @@ public class PluginConfig {
                 .baselineDiffEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_BASELINE_DIFF, "false")))
                 .baselinePath(ctx.getParameter(PARAM_BASELINE_PATH, ""))
                 .baselineUpdateMode(ctx.getParameter(PARAM_BASELINE_UPDATE_MODE, "always"))
+                .slaP95Ms(parseLong(ctx.getParameter(PARAM_SLA_P95_MS, "1000"), 1000))
+                .apdexTargetMs(parseLong(ctx.getParameter(PARAM_APDEX_TARGET_MS, "500"), 500))
+                .regressionThresholdPct(parseDouble(ctx.getParameter(PARAM_REGRESSION_THRESHOLD_PCT, "25"), 25))
+                .cloudwatchEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_CLOUDWATCH, "false")))
+                .cloudwatchRegion(ctx.getParameter(PARAM_CLOUDWATCH_REGION, "us-east-1"))
+                .cloudwatchMetricsJson(ctx.getParameter(PARAM_CLOUDWATCH_METRICS_JSON, "[]"))
+                .cloudwatchAlarms(ctx.getParameter(PARAM_CLOUDWATCH_ALARMS, ""))
+                .cloudwatchOutputPath(ctx.getParameter(PARAM_CLOUDWATCH_OUTPUT_PATH, "cloudwatch-metrics.json"))
+                .jsonReportPath(ctx.getParameter(PARAM_JSON_REPORT_PATH, "Performance_Report.json"))
+                .csvReportPath(ctx.getParameter(PARAM_CSV_REPORT_PATH, "Performance_Report.csv"))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -184,6 +226,10 @@ public class PluginConfig {
 
     private static long parseLong(String s, long defaultVal) {
         try { return Long.parseLong(s); } catch (Exception e) { return defaultVal; }
+    }
+
+    private static double parseDouble(String s, double defaultVal) {
+        try { return Double.parseDouble(s); } catch (Exception e) { return defaultVal; }
     }
 
     /**
@@ -218,6 +264,16 @@ public class PluginConfig {
     public boolean isBaselineDiffEnabled() { return baselineDiffEnabled; }
     public String getBaselinePath() { return baselinePath; }
     public String getBaselineUpdateMode() { return baselineUpdateMode; }
+    public long getSlaP95Ms() { return slaP95Ms; }
+    public long getApdexTargetMs() { return apdexTargetMs; }
+    public double getRegressionThresholdPct() { return regressionThresholdPct; }
+    public boolean isCloudwatchEnabled() { return cloudwatchEnabled; }
+    public String getCloudwatchRegion() { return cloudwatchRegion; }
+    public String getCloudwatchMetricsJson() { return cloudwatchMetricsJson; }
+    public String getCloudwatchAlarms() { return cloudwatchAlarms; }
+    public String getCloudwatchOutputPath() { return cloudwatchOutputPath; }
+    public String getJsonReportPath() { return jsonReportPath; }
+    public String getCsvReportPath() { return csvReportPath; }
 
     /**
      * Resolve a user-configured file path against {@link #outputDirectory}.
@@ -287,6 +343,16 @@ public class PluginConfig {
         private boolean baselineDiffEnabled = false;
         private String baselinePath = "";
         private String baselineUpdateMode = "always";
+        private long slaP95Ms = 1000;
+        private long apdexTargetMs = 500;
+        private double regressionThresholdPct = 25;
+        private boolean cloudwatchEnabled = false;
+        private String cloudwatchRegion = "us-east-1";
+        private String cloudwatchMetricsJson = "[]";
+        private String cloudwatchAlarms = "";
+        private String cloudwatchOutputPath = "cloudwatch-metrics.json";
+        private String jsonReportPath = "Performance_Report.json";
+        private String csvReportPath = "Performance_Report.csv";
         private String splunkSearchUrl = "";
         private String splunkSearchToken = "";
         private String splunkLogIndex = "app";
@@ -325,6 +391,16 @@ public class PluginConfig {
         public Builder baselineDiffEnabled(boolean v) { this.baselineDiffEnabled = v; return this; }
         public Builder baselinePath(String v) { this.baselinePath = v; return this; }
         public Builder baselineUpdateMode(String v) { this.baselineUpdateMode = v; return this; }
+        public Builder slaP95Ms(long v) { this.slaP95Ms = v; return this; }
+        public Builder apdexTargetMs(long v) { this.apdexTargetMs = v; return this; }
+        public Builder regressionThresholdPct(double v) { this.regressionThresholdPct = v; return this; }
+        public Builder cloudwatchEnabled(boolean v) { this.cloudwatchEnabled = v; return this; }
+        public Builder cloudwatchRegion(String v) { this.cloudwatchRegion = v; return this; }
+        public Builder cloudwatchMetricsJson(String v) { this.cloudwatchMetricsJson = v; return this; }
+        public Builder cloudwatchAlarms(String v) { this.cloudwatchAlarms = v; return this; }
+        public Builder cloudwatchOutputPath(String v) { this.cloudwatchOutputPath = v; return this; }
+        public Builder jsonReportPath(String v) { this.jsonReportPath = v; return this; }
+        public Builder csvReportPath(String v) { this.csvReportPath = v; return this; }
         public Builder splunkSearchUrl(String v) { this.splunkSearchUrl = v; return this; }
         public Builder splunkSearchToken(String v) { this.splunkSearchToken = v; return this; }
         public Builder splunkLogIndex(String v) { this.splunkLogIndex = v; return this; }

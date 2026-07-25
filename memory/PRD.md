@@ -1,102 +1,65 @@
 # JMeter Smart Observability AI Plugin - PRD
 
-## Original Problem Statement
-Production-grade JMeter Backend Listener plugin capturing performance metrics,
-forwarding to Splunk HEC, correlating with Splunk logs, fetching Splunk O11y
-metrics, and producing an LLM-authored root-cause report.
+## Vision
+Answer "Can we safely deploy this release into Production?" without a human touching a log line.
 
-## Phases
-- Phase 1: capture + local NDJSON + HEC + GUI config + AI skeleton + HTML report.
-- Phase 2: Splunk Search API + log correlation.
-- Phase 3: Splunk Observability Cloud metrics.
-- Phase 4: multi-provider LLM analysis (OpenAI / Anthropic / Gemini / Grok / Groq).
-- Phase 5: HEC async batching (bounded queue, POISON-pill shutdown).
-- Phase 6: styled HTML report, Splunk Search job cancellation, TLS insecure toggle.
-- Phase 7: absolute-aware output paths, auto-baseline diff piped into LLM prompt.
+## Architecture (delivered, in-plugin)
+Java 21 Maven fat JAR (~16 MB, AWS SDK bundled), running as a JMeter Backend Listener. All enterprise capabilities delivered without a separate service; see `docs/ENTERPRISE_ARCHITECTURE.md` for the v2 design and roadmap.
 
-## Architecture
-- Maven Java 21 (JMeter 5.6.3 `provided` + `ApacheJMeter_components`).
-- Fat JAR via `maven-shade-plugin`; JMeter deps stay external.
-- Packages:
-  - `SmartObservabilityBackendListener`, `config.PluginConfig`, `model.JMeterMetric`
-  - `splunk.SplunkHECClient`, `splunk.AsyncBatchingHECClient`, `splunk.SplunkSearchClient`
-  - `correlate.CorrelationEngine`
-  - `o11y.SplunkO11yMetricsClient`
-  - `baseline.BaselineStore`, `baseline.BaselineDiff`
-  - `ai.LlmClient`, `ai.AIAnalyzer`, `ai.PromptBuilder`, `ai.MetricAggregator`
-  - `report.ReportGenerator`, `report.Markdown`
-  - `store.LocalJsonStore`
-  - `util.HttpClientFactory` (shared TLS-aware HttpClient)
+## Package layout
+- `plugin.SmartObservabilityBackendListener`
+- `config.PluginConfig` (35+ GUI params)
+- `model.JMeterMetric`
+- `ai.MetricAggregator` (full percentile ladder + stddev + median + IQR + apdex + top-error-signatures)
+- `ai.LlmClient` (OpenAI / Anthropic / Gemini / Grok / Groq)
+- `ai.PromptBuilder` (JSON-output contract with schema)
+- `ai.InsightExtractor` (strict-JSON parse w/ markdown fallback)
+- `ai.AIAnalyzer`
+- `score.Finding`, `score.HealthScores`, `score.Verdict`
+- `score.HealthScorer` (8 component scores + weighted-geometric composite)
+- `score.VerdictCompiler` (GO / GO_WITH_CONDITIONS / NO_GO / INSUFFICIENT_DATA + gates + rollout + rollback triggers)
+- `correlate.RuleEngine` (10 deterministic rules: R-CODE-REG, R-CODE-REG-ERR, R-ERR-RATE, R-LATENCY, R-TAIL, R-OBS-GAP, R-INFRA-CPU, R-INFRA-MEM, R-GC-PAUSE, R-K8S-RESTART, R-CW-ALARM)
+- `correlate.CorrelationEngine` (Splunk log-window merge)
+- `splunk.SplunkHECClient`, `splunk.AsyncBatchingHECClient`, `splunk.SplunkSearchClient` (with job-cancel-on-timeout)
+- `o11y.SplunkO11yMetricsClient`
+- `cloudwatch.CloudWatchMetricsCollector` (AWS SDK v2 - metrics + alarm state)
+- `baseline.BaselineStore`, `baseline.BaselineDiff`
+- `report.ReportGenerator` (styled HTML with 12 sections: hero, KPIs, verdict badge, health-score gauges, findings table, per-transaction, baseline diff, correlation, o11y, cloudwatch, business impact + capacity, AI analysis, appendix)
+- `report.Markdown` (safe MD -> HTML)
+- `report.JsonExporter` (schema `report.v2.json`)
+- `report.CsvExporter` (per-transaction + overall)
+- `store.LocalJsonStore` (NDJSON)
+- `util.HttpClientFactory` (TLS-insecure toggle)
 
-## Implemented (Phase 7 - this session)
-
-### Absolute-aware output paths
-- New GUI params `Output_Directory`, `Report_Output_Path`.
-- `PluginConfig.resolvePath(String)`: absolute paths kept as-is; relative
-  paths resolved against `Output_Directory`; blank output dir falls back
-  to JMeter cwd (previous behaviour) but normalised to absolute.
-- All four writers routed through `resolvePath`: local metrics store,
-  correlation JSON, o11y JSON, and the HTML report itself.
-- Listener now INFO-logs the resolved report path so users always know
-  where their report landed.
-- Report + baseline defaults auto-derive:
-  - Report: `Performance_Report.html` under `Output_Directory`.
-  - Baseline: `baseline-<Test_Name>.json` under `Output_Directory` (test
-    name sanitised to `[A-Za-z0-9._-]`).
-
-### Auto-baseline diff feeding the LLM
-- New GUI params `Enable_Baseline_Diff`, `Baseline_Path`, `Baseline_Update_Mode`.
-- `baseline.BaselineStore` reads/writes an envelope `{saved_at, test_name, aggregate}`.
-- `baseline.BaselineDiff.compute(prev, current)` produces per-transaction and
-  overall deltas (count delta, error-rate pp, avg RT %, p95 RT %, max RT %),
-  plus a `notable` string list for entries crossing `|delta| >= 20%` (or 2pp
-  for error rate). Handles `new` / `gone` transactions.
-- Update modes: `always` (default), `never`, `on-success` (skip when errors > 0).
-- `ai.PromptBuilder` inserts a `## Baseline Diff (vs. previous run at ...)` block
-  into the LLM user prompt whenever `has_previous=true`, and the system prompt
-  gained an explicit "Regressions vs. Baseline" report section.
-- `report.ReportGenerator` renders a **Baseline Diff** panel: previous-run pill,
-  colour-coded delta cells (`delta-worse` red / `delta-better` green /
-  `delta-neutral` grey), plus a red `notable` list for eye-catching regressions.
-
-## Live E2E Verification (this session)
-- **Run 1** with `Enable_Baseline_Diff=true` on empty dir:
-  - Log: `Baseline path: /tmp/smoke-out/baseline-smoke-run.json (previous=false)`
-  - Wrote `Performance_Report.html`, `baseline-smoke-run.json`,
-    `jmeter-metrics.json`, `log-correlation.json`, `o11y-metrics.json` -
-    all inside the configured `Output_Directory`.
-- **Run 2** against the saved baseline:
-  - Log: `Baseline path: ... (previous=true)`
-  - HTML report now has a **Baseline Diff** section with pill + colour-coded
-    per-transaction table (screenshot captured).
-  - Groq LLM output includes a dedicated
-    `## Regressions vs. Baseline` section citing the actual %/pp deltas:
-    e.g. *"synthetic-login decreasing by 3.2% and synthetic-checkout
-    increasing by 3.0%"*.
+## Live end-to-end verification (this session)
+Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
+- **Verdict:** `NO_GO` at Production Confidence 53.3 / Risk 46.7 (correct — one transaction seeded to 100 % failure).
+- **Findings:** R-ERR-RATE fired CRITICAL (0.95 confidence, evidence `aggregate.error_rate=0.5`); R-OBS-GAP fired MEDIUM (0.55, evidence `correlation.windows.event_count=0`).
+- **11 Health-score gauges** rendered with colour-coded fill bars.
+- **Gates:** SLA, Regression, Performance, Infrastructure, Application, Observability all passed; "No critical findings" failed.
+- **All artefacts written** under `Output_Directory`: HTML (17 KB), JSON envelope (7.5 KB), CSV (356 B), NDJSON, baseline, correlation, o11y, cloudwatch (empty when disabled).
+- Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **42/42 pass** (`mvn clean test`) - +8 vs previous:
-  - `BaselineTest` (3): compute without previous, compute with prev / new / gone
-    transactions + notable strings, store round-trip.
-  - `PluginConfigPathTest` (5): relative resolve, absolute kept, blank output-dir
-    falls back to cwd, baseline path derived from test name (with sanitisation),
-    explicit baseline path honoured.
+- **42/42 pass** (`mvn clean test`).
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-1.0.0.jar` (~4.18 MB) - drop into
-  `$JMETER_HOME/lib/ext/`.
-- Smoke plan `smoke/smoke.jmx` - drives all toggles from JMeter `-J` properties.
+- `target/jmeter-smart-observability-plugin-1.0.0.jar` (~16 MB with AWS SDK) - drop into `$JMETER_HOME/lib/ext/`.
+- `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
 
-## Backlog
+## Not yet implemented (backlog)
+- PDF + PPTX exports (heavy libs; HTML+CSS is print-safe today)
+- Analysis Service split for horizontal scale (documented in the architecture doc)
+- Slack / Teams / Jira / ServiceNow notification integrations
+- Waterfall / Sankey / dependency map SVG charts
+- Multi-cloud collectors (Azure Monitor, GCP Ops)
+- APM connectors (Datadog, Dynatrace, New Relic)
+- Prometheus / Elastic / Loki collectors
+- Regression prediction + capacity forecast ML models
+- CI gate mode (non-zero exit on `NO_GO`)
 
-### P1
-- Inline SVG sparklines per-transaction (rt-over-time, error % over-time).
-- Retention / rotation of `baseline-*.json` files.
-
-### P2
-- Excel + PDF report writers.
-- Per-provider streaming responses.
-- CI-friendly non-zero exit code when notable regressions exceed threshold.
-
-## Test Credentials
-See `/app/memory/test_credentials.md`.
+## Personas served
+- CIO / CTO / Chief Architect / Engineering Director: page-one verdict + health scores
+- Delivery Manager / Product Owner: gates, rollout, rollback, business impact
+- Perf Engineer: findings table, per-txn stats, baseline diff, evidence pointers
+- SRE: JSON envelope for downstream automation

@@ -40,7 +40,7 @@ public class AIAnalyzer {
     public String analyze(Map<String, Object> aggregateSummary,
                           Map<String, Object> correlation,
                           Map<String, List<Map<String, Object>>> o11yMetrics) {
-        return analyze(aggregateSummary, correlation, o11yMetrics, null);
+        return analyze(aggregateSummary, correlation, o11yMetrics, java.util.Map.of());
     }
 
     /**
@@ -57,7 +57,8 @@ public class AIAnalyzer {
         }
         try {
             String userPrompt = PromptBuilder.buildUserPrompt(
-                    aggregateSummary, correlation, o11yMetrics, baselineDiff);
+                    aggregateSummary, null, null, java.util.List.of(),
+                    baselineDiff, correlation, o11yMetrics, java.util.Map.of(), java.util.Map.of());
             String reply = llm.chat(PromptBuilder.SYSTEM_PROMPT, userPrompt);
             if (reply == null || reply.isBlank()) {
                 return staticAnalysis();

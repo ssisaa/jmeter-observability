@@ -2,15 +2,17 @@ package com.smartjmeter.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.smartjmeter.score.Finding;
+import com.smartjmeter.score.HealthScores;
+import com.smartjmeter.score.Verdict;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Assembles the LLM prompt from four artefacts produced during a
- * JMeter run: aggregate summary, correlated Splunk log windows,
- * Splunk O11y metric points, and (optionally) a baseline diff
- * highlighting per-transaction regressions.
+ * Assembles the executive-grade LLM prompt from the full run context.
+ * The output contract is JSON matching {@link InsightExtractor#OUTPUT_SCHEMA}
+ * with a {@code markdown_report} field for humans.
  */
 public class PromptBuilder {
 
@@ -18,42 +20,59 @@ public class PromptBuilder {
             .enable(SerializationFeature.INDENT_OUTPUT);
 
     public static final String SYSTEM_PROMPT = """
-            You are a senior Site Reliability Engineer analysing the results of a
-            JMeter performance test. Given aggregate metrics, correlated log
-            windows, infrastructure telemetry, and (when present) a diff against
-            the previous run baseline, produce a concise, actionable report with
-            these sections:
+            You are a Principal SRE preparing the executive performance report for a
+            release readiness review. You will be given: aggregate JMeter metrics,
+            deterministic health scores, deterministic rule-engine findings, a
+            baseline diff versus the previous run, correlated Splunk log windows,
+            Splunk Observability metrics, and AWS CloudWatch metrics + alarm states.
 
-              1. Executive Summary (2-3 lines)
-              2. Key Findings (bullet list)
-              3. Regressions vs. Baseline (only if the baseline diff has entries;
-                 quote the specific transactions and %/pp changes)
-              4. Probable Root Causes (ranked, with evidence citations)
-              5. Recommended Actions (prioritised)
+            Return STRICT JSON matching the provided schema. Do not fabricate metrics.
+            Cite the field name that supports each claim in the "evidence" field.
+            If a section has no supporting evidence, return an empty array / object
+            with note "insufficient data".
 
-            Prefer plain text. Do not fabricate metrics. If a section has no
-            supporting evidence, say "insufficient data".
+            The markdown_report field must contain the same content structured with
+            the following headers exactly, in this order:
+              # Executive Summary
+              # Overall Test Verdict
+              # Release Readiness
+              # Business Impact
+              # Regressions vs. Baseline
+              # Key Findings
+              # Root Cause Analysis
+              # Recommendations
             """;
 
     public static String buildUserPrompt(Map<String, Object> aggregateSummary,
-                                         Map<String, Object> correlation,
-                                         Map<String, List<Map<String, Object>>> o11yMetrics) {
-        return buildUserPrompt(aggregateSummary, correlation, o11yMetrics, null);
-    }
-
-    public static String buildUserPrompt(Map<String, Object> aggregateSummary,
+                                         HealthScores scores,
+                                         Verdict verdict,
+                                         List<Finding> findings,
+                                         Map<String, Object> baselineDiff,
                                          Map<String, Object> correlation,
                                          Map<String, List<Map<String, Object>>> o11yMetrics,
-                                         Map<String, Object> baselineDiff) {
+                                         Map<String, Object> cloudwatch,
+                                         Map<String, Object> businessImpactCfg) {
         try {
-            String summaryJson = PRETTY.writeValueAsString(aggregateSummary);
-            String correlationJson = PRETTY.writeValueAsString(correlation);
-            String metricsJson = PRETTY.writeValueAsString(o11yMetrics);
-            String diffSection = renderDiffSection(baselineDiff);
             return """
-                    Performance run artefacts (JSON):
+                    Return a single JSON object matching this schema:
+
+                    %s
+
+                    Run context (JSON):
 
                     ## Aggregate Sample Summary
+                    %s
+
+                    ## Deterministic Health Scores
+                    %s
+
+                    ## Deterministic Verdict (pre-LLM)
+                    %s
+
+                    ## Deterministic Findings
+                    %s
+
+                    ## Baseline Diff (vs. previous run)
                     %s
 
                     ## Correlated Splunk Log Windows
@@ -61,25 +80,30 @@ public class PromptBuilder {
 
                     ## Splunk Observability Cloud Metrics
                     %s
-                    %s
-                    Produce the report now.
-                    """.formatted(summaryJson, correlationJson, metricsJson, diffSection);
-        } catch (Exception e) {
-            return "Aggregate: " + aggregateSummary
-                    + "\nCorrelation: " + correlation
-                    + "\nO11y: " + o11yMetrics
-                    + "\nBaseline diff: " + baselineDiff;
-        }
-    }
 
-    private static String renderDiffSection(Map<String, Object> baselineDiff) throws Exception {
-        if (baselineDiff == null || baselineDiff.isEmpty()
-                || !Boolean.TRUE.equals(baselineDiff.get("has_previous"))) {
-            return "";
+                    ## AWS CloudWatch Metrics + Alarms
+                    %s
+
+                    ## Business Impact Configuration
+                    %s
+
+                    Produce the JSON report now.
+                    """.formatted(
+                    InsightExtractor.OUTPUT_SCHEMA,
+                    PRETTY.writeValueAsString(aggregateSummary),
+                    PRETTY.writeValueAsString(scores == null ? Map.of() : scores.toMap()),
+                    PRETTY.writeValueAsString(verdict == null ? Map.of() : verdict.toMap()),
+                    PRETTY.writeValueAsString(findings == null ? List.of() : findings.stream().map(f -> Map.of(
+                            "id", f.ruleId(), "title", f.title(), "severity", f.severity().name(),
+                            "confidence", f.confidence(), "evidence", f.evidence())).toList()),
+                    PRETTY.writeValueAsString(baselineDiff == null ? Map.of() : baselineDiff),
+                    PRETTY.writeValueAsString(correlation == null ? Map.of() : correlation),
+                    PRETTY.writeValueAsString(o11yMetrics == null ? Map.of() : o11yMetrics),
+                    PRETTY.writeValueAsString(cloudwatch == null ? Map.of() : cloudwatch),
+                    PRETTY.writeValueAsString(businessImpactCfg == null ? Map.of() : businessImpactCfg)
+            );
+        } catch (Exception e) {
+            return "Aggregate: " + aggregateSummary;
         }
-        return "\n## Baseline Diff (vs. previous run at "
-                + baselineDiff.getOrDefault("previous_at", "?") + ")\n"
-                + PRETTY.writeValueAsString(baselineDiff)
-                + "\n";
     }
 }

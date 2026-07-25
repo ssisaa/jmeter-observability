@@ -2,19 +2,31 @@ package com.smartjmeter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartjmeter.ai.AIAnalyzer;
+import com.smartjmeter.ai.InsightExtractor;
 import com.smartjmeter.ai.LlmClient;
 import com.smartjmeter.ai.MetricAggregator;
+import com.smartjmeter.ai.PromptBuilder;
 import com.smartjmeter.baseline.BaselineDiff;
 import com.smartjmeter.baseline.BaselineStore;
+import com.smartjmeter.cloudwatch.CloudWatchMetricsCollector;
 import com.smartjmeter.config.PluginConfig;
 import com.smartjmeter.correlate.CorrelationEngine;
+import com.smartjmeter.correlate.RuleEngine;
 import com.smartjmeter.model.JMeterMetric;
 import com.smartjmeter.o11y.SplunkO11yMetricsClient;
+import com.smartjmeter.report.CsvExporter;
+import com.smartjmeter.report.JsonExporter;
 import com.smartjmeter.report.ReportGenerator;
+import com.smartjmeter.score.Finding;
+import com.smartjmeter.score.HealthScorer;
+import com.smartjmeter.score.HealthScores;
+import com.smartjmeter.score.Verdict;
+import com.smartjmeter.score.VerdictCompiler;
 import com.smartjmeter.splunk.AsyncBatchingHECClient;
 import com.smartjmeter.splunk.SplunkHECClient;
 import com.smartjmeter.splunk.SplunkSearchClient;
-import com.smartjmeter.store.LocalJsonStore;import org.apache.jmeter.config.Arguments;
+import com.smartjmeter.store.LocalJsonStore;
+import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.visualizers.backend.AbstractBackendListenerClient;
 import org.apache.jmeter.visualizers.backend.BackendListenerContext;
@@ -79,6 +91,17 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_ENABLE_BASELINE_DIFF, "false");
         args.addArgument(PluginConfig.PARAM_BASELINE_PATH, "");
         args.addArgument(PluginConfig.PARAM_BASELINE_UPDATE_MODE, "always");
+        // Phase 8 - Enterprise report
+        args.addArgument(PluginConfig.PARAM_SLA_P95_MS, "1000");
+        args.addArgument(PluginConfig.PARAM_APDEX_TARGET_MS, "500");
+        args.addArgument(PluginConfig.PARAM_REGRESSION_THRESHOLD_PCT, "25");
+        args.addArgument(PluginConfig.PARAM_ENABLE_CLOUDWATCH, "false");
+        args.addArgument(PluginConfig.PARAM_CLOUDWATCH_REGION, "us-east-1");
+        args.addArgument(PluginConfig.PARAM_CLOUDWATCH_METRICS_JSON, "[]");
+        args.addArgument(PluginConfig.PARAM_CLOUDWATCH_ALARMS, "");
+        args.addArgument(PluginConfig.PARAM_CLOUDWATCH_OUTPUT_PATH, "cloudwatch-metrics.json");
+        args.addArgument(PluginConfig.PARAM_JSON_REPORT_PATH, "Performance_Report.json");
+        args.addArgument(PluginConfig.PARAM_CSV_REPORT_PATH, "Performance_Report.csv");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -177,11 +200,54 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             if (splunkBatch != null) {
                 splunkBatch.close();
             }
-            Map<String, Object> aggregate = MetricAggregator.aggregate(allMetrics);
+            Map<String, Object> aggregate = MetricAggregator.aggregate(allMetrics, config.getApdexTargetMs());
             Map<String, Object> correlation = runCorrelation();
             Map<String, List<Map<String, Object>>> o11y = runO11yFetch(aggregate);
+            Map<String, Object> cloudwatch = runCloudWatchFetch(aggregate);
             Map<String, Object> baselineDiff = runBaselineDiff(aggregate);
-            String analysis = runAnalysis(aggregate, correlation, o11y, baselineDiff);
+
+            // Deterministic rules + scoring + verdict
+            List<Finding> findings = new RuleEngine().evaluate(aggregate, baselineDiff, correlation, o11y, cloudwatch);
+            HealthScorer scorer = new HealthScorer();
+            HealthScores scores = scorer.score(
+                    aggregate, findings,
+                    config.getSlaP95Ms(),
+                    baselineRegressionPass(baselineDiff),
+                    slaPassPct(aggregate),
+                    o11ySaturation(o11y, "cpu.utilization", "memory.utilization"),
+                    o11yGcPauseRatio(o11y),
+                    0.5,  // pool_saturation - proxy value pending native measurement
+                    0.0,  // slow_query_ratio - filled by Splunk Search results in future rev
+                    0.0,  // deadlock_rate
+                    0.5,  // db_conn_saturation
+                    observabilityCoverage(correlation, o11y, cloudwatch),
+                    1.0,  // concurrency_r2 - proxy; requires ramp-up sampling to compute
+                    o11yRestartRate(o11y),
+                    1.0 - error_rate(aggregate));
+            Verdict verdict = new VerdictCompiler().compile(
+                    scores, findings,
+                    slaPassPct(aggregate),
+                    baselineRegressionPass(baselineDiff),
+                    observabilityCoverage(correlation, o11y, cloudwatch),
+                    85, 70, 0.6);
+
+            // LLM-generated executive insights (JSON output)
+            Map<String, Object> insights = runInsightGeneration(
+                    aggregate, scores, verdict, findings, baselineDiff, correlation, o11y, cloudwatch);
+            String analysisMarkdown = String.valueOf(insights.getOrDefault("markdown", AIAnalyzer.staticAnalysis()));
+
+            // Findings -> serialisable list for report/exporters
+            List<Map<String, Object>> findingsMap = findings.stream().map(f -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", f.ruleId());
+                m.put("title", f.title());
+                m.put("category", f.category());
+                m.put("severity", f.severity().name());
+                m.put("confidence", f.confidence());
+                m.put("evidence", f.evidence());
+                return m;
+            }).toList();
+
             ReportGenerator.Context reportCtx = new ReportGenerator.Context.Builder()
                     .testName(config.getTestName())
                     .environment(config.getEnvironment())
@@ -191,14 +257,35 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                     .aggregate(aggregate)
                     .correlation(correlation)
                     .o11yMetrics(o11y)
+                    .cloudwatch(cloudwatch)
+                    .scores(scores.toMap())
+                    .verdict(verdict.toMap())
+                    .findings(findingsMap)
                     .baselineDiff(baselineDiff)
-                    .llmAnalysis(analysis)
+                    .aiInsights(insights)
+                    .llmAnalysis(analysisMarkdown)
                     .llmProvider(config.isLlmEnabled() ? config.getLlmProvider() : null)
                     .llmModel(config.isLlmEnabled() ? config.getLlmModel() : null)
                     .build();
             Path resolvedReport = config.resolvePath(config.getReportOutputPath());
             new ReportGenerator().generate(reportCtx, resolvedReport.toString());
             LOG.log(Level.INFO, "Performance report written to {0}", resolvedReport);
+
+            // JSON + CSV exports
+            Path jsonPath = config.resolvePath(config.getJsonReportPath());
+            Map<String, Object> envelope = JsonExporter.envelope(
+                    "report.v2.json",
+                    config.getTestName() + "-" + extractLong(aggregate, "start_ms", 0),
+                    config.getTestName(), config.getEnvironment(), config.getApplication(),
+                    aggregate, scores.toMap(), verdict.toMap(), findingsMap,
+                    baselineDiff, correlation, o11y, cloudwatch, insights);
+            new JsonExporter().export(jsonPath, envelope);
+            LOG.log(Level.INFO, "JSON report written to {0}", jsonPath);
+
+            Path csvPath = config.resolvePath(config.getCsvReportPath());
+            new CsvExporter().export(csvPath, aggregate);
+            LOG.log(Level.INFO, "CSV report written to {0}", csvPath);
+
             if (baselineStore != null && shouldUpdateBaseline(aggregate)) {
                 baselineStore.save(config.getTestName(), aggregate);
                 LOG.log(Level.INFO, "Baseline updated at {0}", baselineStore.getFilePath());
@@ -291,20 +378,165 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                                Map<String, Object> correlation,
                                Map<String, List<Map<String, Object>>> o11y,
                                Map<String, Object> baselineDiff) {
+        // Retained for backwards compatibility; the new enterprise pipeline
+        // uses runInsightGeneration below.
         if (!config.isLlmEnabled()) {
             return AIAnalyzer.staticAnalysis();
         }
         String key = config.resolveLlmApiKey();
-        if (key.isBlank()) {
-            LOG.log(Level.WARNING, "LLM enabled but no API key resolved from GUI param or env var; using static analysis");
-            return AIAnalyzer.staticAnalysis();
-        }
+        if (key.isBlank()) return AIAnalyzer.staticAnalysis();
         LlmClient client = new LlmClient(
                 LlmClient.Provider.parse(config.getLlmProvider()),
-                config.getLlmModel(),
-                key,
-                config.getLlmBaseUrl());
+                config.getLlmModel(), key, config.getLlmBaseUrl());
         return new AIAnalyzer(client).analyze(aggregate, correlation, o11y, baselineDiff);
+    }
+
+    private Map<String, Object> runCloudWatchFetch(Map<String, Object> aggregate) {
+        if (!config.isCloudwatchEnabled()) return Map.of();
+        long start = extractLong(aggregate, "start_ms", System.currentTimeMillis() - 60_000);
+        long stop = extractLong(aggregate, "stop_ms", System.currentTimeMillis());
+        if (stop <= start) stop = start + 60_000;
+        List<Map<String, Object>> metricConfigs;
+        try {
+            metricConfigs = MAPPER.readValue(
+                    config.getCloudwatchMetricsJson() == null || config.getCloudwatchMetricsJson().isBlank()
+                            ? "[]" : config.getCloudwatchMetricsJson(),
+                    MAPPER.getTypeFactory().constructCollectionType(List.class, Map.class));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to parse CloudWatch_Metrics_Json - continuing without", e);
+            metricConfigs = List.of();
+        }
+        List<String> alarmNames = config.getCloudwatchAlarms() == null || config.getCloudwatchAlarms().isBlank()
+                ? List.of()
+                : java.util.Arrays.stream(config.getCloudwatchAlarms().split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        try (CloudWatchMetricsCollector cw = new CloudWatchMetricsCollector(config.getCloudwatchRegion())) {
+            Map<String, Object> out = cw.collect(metricConfigs, alarmNames, start, stop);
+            writeJson(config.resolvePath(config.getCloudwatchOutputPath()), out);
+            return out;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "CloudWatch collection failed", e);
+            return Map.of();
+        }
+    }
+
+    private Map<String, Object> runInsightGeneration(Map<String, Object> aggregate,
+                                                     HealthScores scores, Verdict verdict,
+                                                     List<Finding> findings,
+                                                     Map<String, Object> baselineDiff,
+                                                     Map<String, Object> correlation,
+                                                     Map<String, List<Map<String, Object>>> o11y,
+                                                     Map<String, Object> cloudwatch) {
+        if (!config.isLlmEnabled()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("structured", false);
+            m.put("markdown", AIAnalyzer.staticAnalysis());
+            return m;
+        }
+        String key = config.resolveLlmApiKey();
+        if (key.isBlank()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("structured", false);
+            m.put("markdown", AIAnalyzer.staticAnalysis());
+            return m;
+        }
+        try {
+            LlmClient client = new LlmClient(
+                    LlmClient.Provider.parse(config.getLlmProvider()),
+                    config.getLlmModel(), key, config.getLlmBaseUrl())
+                    .withMaxTokens(2048);
+            String userPrompt = PromptBuilder.buildUserPrompt(
+                    aggregate, scores, verdict, findings, baselineDiff, correlation, o11y, cloudwatch, Map.of());
+            String raw = client.chat(PromptBuilder.SYSTEM_PROMPT, userPrompt);
+            return InsightExtractor.extract(raw);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "LLM insight generation failed - static fallback", e);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("structured", false);
+            m.put("markdown", AIAnalyzer.staticAnalysis());
+            return m;
+        }
+    }
+
+    // --- helper metrics for the scorer ---
+
+    @SuppressWarnings("unchecked")
+    private double slaPassPct(Map<String, Object> aggregate) {
+        Map<String, Object> perTxn = (Map<String, Object>) aggregate.getOrDefault("per_transaction", Map.of());
+        if (perTxn.isEmpty()) return 1.0;
+        long pass = 0, total = 0;
+        long slaP95 = config.getSlaP95Ms();
+        for (Object o : perTxn.values()) {
+            if (o instanceof Map<?, ?> row) {
+                Object p95 = row.get("rt_p95_ms");
+                total++;
+                if (p95 instanceof Number n && n.longValue() <= slaP95) pass++;
+            }
+        }
+        return total == 0 ? 1.0 : (double) pass / total;
+    }
+
+    private boolean baselineRegressionPass(Map<String, Object> baselineDiff) {
+        if (baselineDiff == null || !Boolean.TRUE.equals(baselineDiff.get("has_previous"))) return true;
+        Object overall = baselineDiff.get("overall");
+        if (overall instanceof Map<?, ?> m) {
+            Object p95Pct = m.get("rt_p95_pct");
+            if (p95Pct instanceof Number n && Math.abs(n.doubleValue()) > config.getRegressionThresholdPct()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static double o11ySaturation(Map<String, List<Map<String, Object>>> o11y, String... metrics) {
+        if (o11y == null || o11y.isEmpty()) return 0;
+        double max = 0;
+        for (String m : metrics) {
+            for (Map<String, Object> p : o11y.getOrDefault(m, List.of())) {
+                Object v = p.get("value");
+                if (v instanceof Number n && n.doubleValue() > max) max = n.doubleValue();
+            }
+        }
+        return Math.min(1.0, max);
+    }
+
+    private static double o11yGcPauseRatio(Map<String, List<Map<String, Object>>> o11y) {
+        double max = 0;
+        for (Map<String, Object> p : o11y == null ? List.<Map<String, Object>>of() : o11y.getOrDefault("jvm.gc.pause_ms", List.of())) {
+            Object v = p.get("value");
+            if (v instanceof Number n && n.doubleValue() > max) max = n.doubleValue();
+        }
+        // Normalise: 2000 ms of GC pause -> ratio 1.0
+        return Math.min(1.0, max / 2000d);
+    }
+
+    private static double o11yRestartRate(Map<String, List<Map<String, Object>>> o11y) {
+        double sum = 0;
+        for (Map<String, Object> p : o11y == null ? List.<Map<String, Object>>of() : o11y.getOrDefault("k8s.pod.restart_count", List.of())) {
+            Object v = p.get("value");
+            if (v instanceof Number n) sum += n.doubleValue();
+        }
+        // Normalise: 5 restarts -> ratio 1.0
+        return Math.min(1.0, sum / 5d);
+    }
+
+    private static double observabilityCoverage(Map<String, Object> correlation,
+                                                Map<String, List<Map<String, Object>>> o11y,
+                                                Map<String, Object> cloudwatch) {
+        int have = 0, total = 3;
+        if (correlation != null && !correlation.isEmpty()) have++;
+        if (o11y != null && !o11y.isEmpty()) have++;
+        if (cloudwatch != null && !cloudwatch.isEmpty()) have++;
+        return total == 0 ? 0 : (double) have / total;
+    }
+
+    private static double error_rate(Map<String, Object> aggregate) {
+        Object overall = aggregate.get("overall");
+        if (overall instanceof Map<?, ?> m) {
+            Object v = m.get("error_rate");
+            if (v instanceof Number n) return n.doubleValue();
+        }
+        return 0;
     }
 
     /* ---------------- helpers ---------------- */
