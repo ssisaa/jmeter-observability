@@ -25,6 +25,15 @@ public class PluginConfig {
     public static final String PARAM_HEC_QUEUE_CAPACITY = "HEC_Queue_Capacity";
     public static final String PARAM_TLS_INSECURE = "TLS_Insecure";
 
+    // Output paths
+    public static final String PARAM_OUTPUT_DIRECTORY = "Output_Directory";
+    public static final String PARAM_REPORT_OUTPUT_PATH = "Report_Output_Path";
+
+    // Baseline diff (Phase 7)
+    public static final String PARAM_ENABLE_BASELINE_DIFF = "Enable_Baseline_Diff";
+    public static final String PARAM_BASELINE_PATH = "Baseline_Path";
+    public static final String PARAM_BASELINE_UPDATE_MODE = "Baseline_Update_Mode";
+
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
     public static final String PARAM_SPLUNK_SEARCH_TOKEN = "Splunk_Search_Token";
@@ -63,6 +72,11 @@ public class PluginConfig {
     private final long hecFlushIntervalMs;
     private final int hecQueueCapacity;
     private final boolean tlsInsecure;
+    private final String outputDirectory;
+    private final String reportOutputPath;
+    private final boolean baselineDiffEnabled;
+    private final String baselinePath;
+    private final String baselineUpdateMode;
 
     private final String splunkSearchUrl;
     private final String splunkSearchToken;
@@ -100,6 +114,11 @@ public class PluginConfig {
         this.hecFlushIntervalMs = b.hecFlushIntervalMs;
         this.hecQueueCapacity = b.hecQueueCapacity;
         this.tlsInsecure = b.tlsInsecure;
+        this.outputDirectory = b.outputDirectory;
+        this.reportOutputPath = b.reportOutputPath;
+        this.baselineDiffEnabled = b.baselineDiffEnabled;
+        this.baselinePath = b.baselinePath;
+        this.baselineUpdateMode = b.baselineUpdateMode;
         this.splunkSearchUrl = b.splunkSearchUrl;
         this.splunkSearchToken = b.splunkSearchToken;
         this.splunkLogIndex = b.splunkLogIndex;
@@ -136,6 +155,11 @@ public class PluginConfig {
                 .hecFlushIntervalMs(parseLong(ctx.getParameter(PARAM_HEC_FLUSH_INTERVAL_MS, "1000"), 1000))
                 .hecQueueCapacity((int) parseLong(ctx.getParameter(PARAM_HEC_QUEUE_CAPACITY, "10000"), 10000))
                 .tlsInsecure(Boolean.parseBoolean(ctx.getParameter(PARAM_TLS_INSECURE, "false")))
+                .outputDirectory(ctx.getParameter(PARAM_OUTPUT_DIRECTORY, ""))
+                .reportOutputPath(ctx.getParameter(PARAM_REPORT_OUTPUT_PATH, "Performance_Report.html"))
+                .baselineDiffEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_BASELINE_DIFF, "false")))
+                .baselinePath(ctx.getParameter(PARAM_BASELINE_PATH, ""))
+                .baselineUpdateMode(ctx.getParameter(PARAM_BASELINE_UPDATE_MODE, "always"))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -189,6 +213,41 @@ public class PluginConfig {
     public long getHecFlushIntervalMs() { return hecFlushIntervalMs; }
     public int getHecQueueCapacity() { return hecQueueCapacity; }
     public boolean isTlsInsecure() { return tlsInsecure; }
+    public String getOutputDirectory() { return outputDirectory; }
+    public String getReportOutputPath() { return reportOutputPath; }
+    public boolean isBaselineDiffEnabled() { return baselineDiffEnabled; }
+    public String getBaselinePath() { return baselinePath; }
+    public String getBaselineUpdateMode() { return baselineUpdateMode; }
+
+    /**
+     * Resolve a user-configured file path against {@link #outputDirectory}.
+     * Absolute paths are returned as-is. Blank input yields the output
+     * directory itself. Blank output directory falls back to the JMeter
+     * process cwd, which is what the plugin did in earlier releases.
+     */
+    public java.nio.file.Path resolvePath(String path) {
+        java.nio.file.Path candidate = (path == null || path.isBlank())
+                ? java.nio.file.Path.of(".")
+                : java.nio.file.Path.of(path);
+        if (candidate.isAbsolute()) return candidate.normalize();
+        if (outputDirectory == null || outputDirectory.isBlank()) {
+            return candidate.toAbsolutePath().normalize();
+        }
+        return java.nio.file.Path.of(outputDirectory).resolve(candidate).toAbsolutePath().normalize();
+    }
+
+    /**
+     * Resolve the baseline JSON path. If the user left it blank, derive
+     * {@code baseline-<test_name>.json} inside the output directory so
+     * multiple test plans don't collide.
+     */
+    public java.nio.file.Path resolveBaselinePath() {
+        if (baselinePath != null && !baselinePath.isBlank()) return resolvePath(baselinePath);
+        String safe = (testName == null || testName.isBlank())
+                ? "default"
+                : testName.replaceAll("[^A-Za-z0-9._-]", "_");
+        return resolvePath("baseline-" + safe + ".json");
+    }
     public String getSplunkSearchUrl() { return splunkSearchUrl; }
     public String getSplunkSearchToken() { return splunkSearchToken; }
     public String getSplunkLogIndex() { return splunkLogIndex; }
@@ -223,6 +282,11 @@ public class PluginConfig {
         private long hecFlushIntervalMs = 1000;
         private int hecQueueCapacity = 10_000;
         private boolean tlsInsecure = false;
+        private String outputDirectory = "";
+        private String reportOutputPath = "Performance_Report.html";
+        private boolean baselineDiffEnabled = false;
+        private String baselinePath = "";
+        private String baselineUpdateMode = "always";
         private String splunkSearchUrl = "";
         private String splunkSearchToken = "";
         private String splunkLogIndex = "app";
@@ -256,6 +320,11 @@ public class PluginConfig {
         public Builder hecFlushIntervalMs(long v) { this.hecFlushIntervalMs = v; return this; }
         public Builder hecQueueCapacity(int v) { this.hecQueueCapacity = v; return this; }
         public Builder tlsInsecure(boolean v) { this.tlsInsecure = v; return this; }
+        public Builder outputDirectory(String v) { this.outputDirectory = v; return this; }
+        public Builder reportOutputPath(String v) { this.reportOutputPath = v; return this; }
+        public Builder baselineDiffEnabled(boolean v) { this.baselineDiffEnabled = v; return this; }
+        public Builder baselinePath(String v) { this.baselinePath = v; return this; }
+        public Builder baselineUpdateMode(String v) { this.baselineUpdateMode = v; return this; }
         public Builder splunkSearchUrl(String v) { this.splunkSearchUrl = v; return this; }
         public Builder splunkSearchToken(String v) { this.splunkSearchToken = v; return this; }
         public Builder splunkLogIndex(String v) { this.splunkLogIndex = v; return this; }

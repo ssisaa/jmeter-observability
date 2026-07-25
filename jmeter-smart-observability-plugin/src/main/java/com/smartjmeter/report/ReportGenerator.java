@@ -75,6 +75,7 @@ public class ReportGenerator {
 
         renderKpis(sb, ctx);
         renderTransactionTable(sb, ctx);
+        renderBaselineDiff(sb, ctx);
         renderCorrelation(sb, ctx);
         renderO11y(sb, ctx);
         renderAnalysis(sb, ctx);
@@ -136,6 +137,78 @@ public class ReportGenerator {
               .append("</tr>");
         }
         sb.append("</tbody></table></section>");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void renderBaselineDiff(StringBuilder sb, Context ctx) {
+        Map<String, Object> d = ctx.baselineDiff;
+        if (d == null || d.isEmpty()) return;
+        boolean has = Boolean.TRUE.equals(d.get("has_previous"));
+        sb.append("<section class=\"card\"><h2>Baseline Diff</h2>");
+        if (!has) {
+            sb.append("<p class=\"muted\">No previous baseline found &mdash; this run will be saved as the new baseline.</p>")
+              .append("</section>");
+            return;
+        }
+        Object prevAt = d.get("previous_at");
+        sb.append("<div class=\"pill-row\">")
+          .append(pill("Previous run", prevAt == null ? "?" : prevAt.toString()))
+          .append("</div>");
+
+        List<String> notable = (List<String>) d.getOrDefault("notable", List.of());
+        if (!notable.isEmpty()) {
+            sb.append("<ul class=\"notable\">");
+            for (String n : notable) sb.append("<li>").append(escape(n)).append("</li>");
+            sb.append("</ul>");
+        }
+
+        Map<String, Object> perTxn = (Map<String, Object>) d.getOrDefault("per_transaction", Map.of());
+        if (!perTxn.isEmpty()) {
+            sb.append("<table><thead><tr>")
+              .append("<th>Transaction</th><th>Count &Delta;</th><th>Error &Delta;pp</th>")
+              .append("<th>Avg RT %</th><th>P95 RT %</th><th>Max RT %</th></tr></thead><tbody>");
+            for (Map.Entry<String, Object> e : perTxn.entrySet()) {
+                Map<String, Object> row = (Map<String, Object>) e.getValue();
+                Object status = row.get("status");
+                if ("new".equals(status)) {
+                    sb.append("<tr><td>").append(escape(e.getKey())).append("</td>")
+                      .append("<td colspan=\"5\" class=\"muted\">new transaction</td></tr>");
+                    continue;
+                }
+                if ("gone".equals(status)) {
+                    sb.append("<tr><td>").append(escape(e.getKey())).append("</td>")
+                      .append("<td colspan=\"5\" class=\"muted\">missing this run</td></tr>");
+                    continue;
+                }
+                sb.append("<tr>")
+                  .append("<td>").append(escape(e.getKey())).append("</td>")
+                  .append("<td>").append(row.getOrDefault("count_delta", 0)).append("</td>")
+                  .append("<td>").append(tone(asDouble(row.get("error_rate_pp")), 2.0)).append(fmtSigned(row.get("error_rate_pp"), "pp")).append("</span></td>")
+                  .append("<td>").append(tone(asDouble(row.get("rt_avg_pct")), 20.0)).append(fmtSigned(row.get("rt_avg_pct"), "%")).append("</span></td>")
+                  .append("<td>").append(tone(asDouble(row.get("rt_p95_pct")), 20.0)).append(fmtSigned(row.get("rt_p95_pct"), "%")).append("</span></td>")
+                  .append("<td>").append(tone(asDouble(row.get("rt_max_pct")), 20.0)).append(fmtSigned(row.get("rt_max_pct"), "%")).append("</span></td>")
+                  .append("</tr>");
+            }
+            sb.append("</tbody></table>");
+        }
+        sb.append("</section>");
+    }
+
+    private static String tone(double v, double threshold) {
+        String cls = Math.abs(v) < threshold ? "delta-neutral"
+                : v > 0 ? "delta-worse" : "delta-better";
+        return "<span class=\"" + cls + "\">";
+    }
+
+    private static String fmtSigned(Object o, String unit) {
+        double v = asDouble(o);
+        return (v > 0 ? "+" : "") + v + unit;
+    }
+
+    private static double asDouble(Object o) {
+        if (o instanceof Number n) return n.doubleValue();
+        if (o instanceof String s) { try { return Double.parseDouble(s); } catch (Exception e) { return 0; } }
+        return 0;
     }
 
     @SuppressWarnings("unchecked")
@@ -240,6 +313,7 @@ public class ReportGenerator {
         final Map<String, Object> aggregate;
         final Map<String, Object> correlation;
         final Map<String, List<Map<String, Object>>> o11yMetrics;
+        final Map<String, Object> baselineDiff;
         final String llmAnalysis;
         final String llmProvider;
         final String llmModel;
@@ -253,6 +327,7 @@ public class ReportGenerator {
             this.aggregate = b.aggregate == null ? new LinkedHashMap<>() : b.aggregate;
             this.correlation = b.correlation == null ? new LinkedHashMap<>() : b.correlation;
             this.o11yMetrics = b.o11yMetrics == null ? Map.of() : b.o11yMetrics;
+            this.baselineDiff = b.baselineDiff;
             this.llmAnalysis = b.llmAnalysis;
             this.llmProvider = b.llmProvider;
             this.llmModel = b.llmModel;
@@ -267,6 +342,7 @@ public class ReportGenerator {
             private Map<String, Object> aggregate;
             private Map<String, Object> correlation;
             private Map<String, List<Map<String, Object>>> o11yMetrics;
+            private Map<String, Object> baselineDiff;
             private String llmAnalysis;
             private String llmProvider;
             private String llmModel;
@@ -279,6 +355,7 @@ public class ReportGenerator {
             public Builder aggregate(Map<String, Object> v) { this.aggregate = v; return this; }
             public Builder correlation(Map<String, Object> v) { this.correlation = v; return this; }
             public Builder o11yMetrics(Map<String, List<Map<String, Object>>> v) { this.o11yMetrics = v; return this; }
+            public Builder baselineDiff(Map<String, Object> v) { this.baselineDiff = v; return this; }
             public Builder llmAnalysis(String v) { this.llmAnalysis = v; return this; }
             public Builder llmProvider(String v) { this.llmProvider = v; return this; }
             public Builder llmModel(String v) { this.llmModel = v; return this; }
@@ -384,5 +461,10 @@ public class ReportGenerator {
             .analysis-body p { margin: 8px 0; }
             .analysis-body strong { color: var(--ink); }
             footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0 32px; }
+            ul.notable { margin: 12px 0; padding-left: 20px; }
+            ul.notable li { margin: 3px 0; color: var(--danger); font-weight: 500; }
+            .delta-worse { color: var(--danger); font-weight: 600; }
+            .delta-better { color: var(--ok); font-weight: 600; }
+            .delta-neutral { color: var(--muted); }
             """;
 }

@@ -88,7 +88,7 @@
               </elementProp>
               <elementProp name="Local_Store_Path" elementType="Argument">
                 <stringProp name="Argument.name">Local_Store_Path</stringProp>
-                <stringProp name="Argument.value">/tmp/smoke-out/jmeter-metrics.json</stringProp>
+                <stringProp name="Argument.value">jmeter-metrics.json</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="Enable_Splunk" elementType="Argument">
@@ -148,7 +148,7 @@
               </elementProp>
               <elementProp name="Correlation_Output_Path" elementType="Argument">
                 <stringProp name="Argument.name">Correlation_Output_Path</stringProp>
-                <stringProp name="Argument.value">/tmp/smoke-out/log-correlation.json</stringProp>
+                <stringProp name="Argument.value">log-correlation.json</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="O11y_API_URL" elementType="Argument">
@@ -178,7 +178,7 @@
               </elementProp>
               <elementProp name="O11y_Output_Path" elementType="Argument">
                 <stringProp name="Argument.name">O11y_Output_Path</stringProp>
-                <stringProp name="Argument.value">/tmp/smoke-out/o11y-metrics.json</stringProp>
+                <stringProp name="Argument.value">o11y-metrics.json</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="Enable_LLM" elementType="Argument">
@@ -209,6 +209,31 @@
               <elementProp name="LLM_Base_URL" elementType="Argument">
                 <stringProp name="Argument.name">LLM_Base_URL</stringProp>
                 <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Output_Directory" elementType="Argument">
+                <stringProp name="Argument.name">Output_Directory</stringProp>
+                <stringProp name="Argument.value">${__P(out.dir,/tmp/smoke-out)}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Report_Output_Path" elementType="Argument">
+                <stringProp name="Argument.name">Report_Output_Path</stringProp>
+                <stringProp name="Argument.value">Performance_Report.html</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Enable_Baseline_Diff" elementType="Argument">
+                <stringProp name="Argument.name">Enable_Baseline_Diff</stringProp>
+                <stringProp name="Argument.value">${__P(baseline.enabled,false)}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Baseline_Path" elementType="Argument">
+                <stringProp name="Argument.name">Baseline_Path</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Baseline_Update_Mode" elementType="Argument">
+                <stringProp name="Argument.name">Baseline_Update_Mode</stringProp>
+                <stringProp name="Argument.value">always</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>

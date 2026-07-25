@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartjmeter.ai.AIAnalyzer;
 import com.smartjmeter.ai.LlmClient;
 import com.smartjmeter.ai.MetricAggregator;
+import com.smartjmeter.baseline.BaselineDiff;
+import com.smartjmeter.baseline.BaselineStore;
 import com.smartjmeter.config.PluginConfig;
 import com.smartjmeter.correlate.CorrelationEngine;
 import com.smartjmeter.model.JMeterMetric;
@@ -50,6 +52,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
     private SplunkHECClient splunk;
     private AsyncBatchingHECClient splunkBatch;
     private LocalJsonStore localStore;
+    private BaselineStore baselineStore;
+    private Map<String, Object> previousBaseline = Map.of();
     private final List<JMeterMetric> allMetrics = new CopyOnWriteArrayList<>();
 
     @Override
@@ -70,6 +74,11 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_HEC_FLUSH_INTERVAL_MS, "1000");
         args.addArgument(PluginConfig.PARAM_HEC_QUEUE_CAPACITY, "10000");
         args.addArgument(PluginConfig.PARAM_TLS_INSECURE, "false");
+        args.addArgument(PluginConfig.PARAM_OUTPUT_DIRECTORY, "");
+        args.addArgument(PluginConfig.PARAM_REPORT_OUTPUT_PATH, "Performance_Report.html");
+        args.addArgument(PluginConfig.PARAM_ENABLE_BASELINE_DIFF, "false");
+        args.addArgument(PluginConfig.PARAM_BASELINE_PATH, "");
+        args.addArgument(PluginConfig.PARAM_BASELINE_UPDATE_MODE, "always");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -119,12 +128,19 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             }
         }
         if (config.isLocalStoreEnabled()) {
-            this.localStore = new LocalJsonStore(config.getLocalStorePath());
+            this.localStore = new LocalJsonStore(config.resolvePath(config.getLocalStorePath()).toString());
+        }
+
+        if (config.isBaselineDiffEnabled()) {
+            this.baselineStore = new BaselineStore(config.resolveBaselinePath());
+            this.previousBaseline = baselineStore.load();
+            LOG.log(Level.INFO, "Baseline path: {0} (previous={1})",
+                    new Object[]{baselineStore.getFilePath(), !previousBaseline.isEmpty()});
         }
 
         LOG.log(Level.INFO,
                 "Smart Observability Plugin initialised (env={0}, app={1}, splunk={2}, local={3}, "
-                        + "correlation={4}, o11y={5}, llm={6}/{7})",
+                        + "correlation={4}, o11y={5}, llm={6}/{7}, baseline={8}, out={9})",
                 new Object[]{
                         config.getEnvironment(),
                         config.getApplication(),
@@ -133,7 +149,9 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                         config.isCorrelationEnabled(),
                         config.isO11yEnabled(),
                         config.isLlmEnabled(),
-                        config.getLlmProvider()
+                        config.getLlmProvider(),
+                        config.isBaselineDiffEnabled(),
+                        config.resolvePath("").toString()
                 });
     }
 
@@ -162,7 +180,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             Map<String, Object> aggregate = MetricAggregator.aggregate(allMetrics);
             Map<String, Object> correlation = runCorrelation();
             Map<String, List<Map<String, Object>>> o11y = runO11yFetch(aggregate);
-            String analysis = runAnalysis(aggregate, correlation, o11y);
+            Map<String, Object> baselineDiff = runBaselineDiff(aggregate);
+            String analysis = runAnalysis(aggregate, correlation, o11y, baselineDiff);
             ReportGenerator.Context reportCtx = new ReportGenerator.Context.Builder()
                     .testName(config.getTestName())
                     .environment(config.getEnvironment())
@@ -172,11 +191,18 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                     .aggregate(aggregate)
                     .correlation(correlation)
                     .o11yMetrics(o11y)
+                    .baselineDiff(baselineDiff)
                     .llmAnalysis(analysis)
                     .llmProvider(config.isLlmEnabled() ? config.getLlmProvider() : null)
                     .llmModel(config.isLlmEnabled() ? config.getLlmModel() : null)
                     .build();
-            new ReportGenerator().generate(reportCtx, ReportGenerator.DEFAULT_REPORT_PATH);
+            Path resolvedReport = config.resolvePath(config.getReportOutputPath());
+            new ReportGenerator().generate(reportCtx, resolvedReport.toString());
+            LOG.log(Level.INFO, "Performance report written to {0}", resolvedReport);
+            if (baselineStore != null && shouldUpdateBaseline(aggregate)) {
+                baselineStore.save(config.getTestName(), aggregate);
+                LOG.log(Level.INFO, "Baseline updated at {0}", baselineStore.getFilePath());
+            }
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Teardown analysis pipeline failed", e);
         }
@@ -218,7 +244,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         out.put("failure_count", failures.size());
         out.put("window_seconds", config.getCorrelationWindowSeconds());
         out.put("windows", windowResults);
-        writeJson(config.getCorrelationOutputPath(), out);
+        writeJson(config.resolvePath(config.getCorrelationOutputPath()), out);
         return out;
     }
 
@@ -235,13 +261,36 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                 config.getO11yUrl(), config.getO11yToken(), config.isTlsInsecure())
                 .withResolutionMs(config.getO11yResolutionMs());
         Map<String, List<Map<String, Object>>> out = client.fetchAll(metrics, start, stop);
-        writeJson(config.getO11yOutputPath(), out);
+        writeJson(config.resolvePath(config.getO11yOutputPath()), out);
         return out;
+    }
+
+    private Map<String, Object> runBaselineDiff(Map<String, Object> aggregate) {
+        if (!config.isBaselineDiffEnabled()) return Map.of();
+        return BaselineDiff.compute(previousBaseline, aggregate);
+    }
+
+    private boolean shouldUpdateBaseline(Map<String, Object> aggregate) {
+        String mode = config.getBaselineUpdateMode();
+        if (mode == null) return true;
+        return switch (mode.trim().toLowerCase()) {
+            case "never" -> false;
+            case "on-success" -> {
+                Object overall = aggregate.get("overall");
+                if (overall instanceof Map<?, ?> m) {
+                    Object errors = m.get("errors");
+                    yield !(errors instanceof Number n) || n.longValue() == 0;
+                }
+                yield true;
+            }
+            default -> true; // "always"
+        };
     }
 
     private String runAnalysis(Map<String, Object> aggregate,
                                Map<String, Object> correlation,
-                               Map<String, List<Map<String, Object>>> o11y) {
+                               Map<String, List<Map<String, Object>>> o11y,
+                               Map<String, Object> baselineDiff) {
         if (!config.isLlmEnabled()) {
             return AIAnalyzer.staticAnalysis();
         }
@@ -255,7 +304,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                 config.getLlmModel(),
                 key,
                 config.getLlmBaseUrl());
-        return new AIAnalyzer(client).analyze(aggregate, correlation, o11y);
+        return new AIAnalyzer(client).analyze(aggregate, correlation, o11y, baselineDiff);
     }
 
     /* ---------------- helpers ---------------- */
@@ -286,15 +335,14 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         return defaultVal;
     }
 
-    private static void writeJson(String path, Object body) {
+    private static void writeJson(Path target, Object body) {
         try {
-            Path target = Path.of(path);
             if (target.getParent() != null) {
                 Files.createDirectories(target.getParent());
             }
             Files.writeString(target, MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(body));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Failed to write JSON output to " + path, e);
+            LOG.log(Level.WARNING, "Failed to write JSON output to " + target, e);
         }
     }
 }

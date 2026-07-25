@@ -36,18 +36,28 @@ public class AIAnalyzer {
         return staticAnalysis();
     }
 
-    /**
-     * New rich-context entry point.
-     */
+    /** New rich-context entry point without a baseline diff. */
     public String analyze(Map<String, Object> aggregateSummary,
                           Map<String, Object> correlation,
                           Map<String, List<Map<String, Object>>> o11yMetrics) {
+        return analyze(aggregateSummary, correlation, o11yMetrics, null);
+    }
+
+    /**
+     * Rich entry point with an optional baseline diff. When
+     * {@code baselineDiff.has_previous == true} the diff is embedded in
+     * the LLM prompt as its own section.
+     */
+    public String analyze(Map<String, Object> aggregateSummary,
+                          Map<String, Object> correlation,
+                          Map<String, List<Map<String, Object>>> o11yMetrics,
+                          Map<String, Object> baselineDiff) {
         if (llm == null || !llm.isConfigured()) {
             return staticAnalysis();
         }
         try {
             String userPrompt = PromptBuilder.buildUserPrompt(
-                    aggregateSummary, correlation, o11yMetrics);
+                    aggregateSummary, correlation, o11yMetrics, baselineDiff);
             String reply = llm.chat(PromptBuilder.SYSTEM_PROMPT, userPrompt);
             if (reply == null || reply.isBlank()) {
                 return staticAnalysis();
