@@ -1,0 +1,26 @@
+<html>
+  <head>
+    <title>AI Performance Report</title>
+  </head>
+  <body>
+    <h1>AI Performance Report</h1>
+    <h2>Analysis</h2>
+    <pre>1. Executive Summary
+The performance test showed a high error rate of 0.5, with 10 out of 20 samples failing. The average response time was 105ms.
+
+2. Key Findings
+* High error rate of 0.5
+* All "synthetic-checkout" transactions failed
+* "synthetic-login" transactions had a high average response time of 145ms
+* No correlated log events were found in the Splunk log windows
+
+3. Probable Root Causes
+1. **synthetic-checkout transaction issue** (evidence: 100% error rate for "synthetic-checkout" transactions in Aggregate Sample Summary)
+2. **insufficient data** for other probable root causes due to lack of correlated log events and empty infrastructure telemetry metrics
+
+4. Recommended Actions
+1. **Investigate and fix the synthetic-checkout transaction issue** (high priority)
+2. **Collect and analyze correlated log events** to identify potential root causes (medium priority)
+3. **Collect and analyze infrastructure telemetry metrics** to identify potential performance bottlenecks (medium priority)</pre>
+  </body>
+</html>

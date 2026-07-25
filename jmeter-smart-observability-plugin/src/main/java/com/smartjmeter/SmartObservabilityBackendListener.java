@@ -9,6 +9,7 @@ import com.smartjmeter.correlate.CorrelationEngine;
 import com.smartjmeter.model.JMeterMetric;
 import com.smartjmeter.o11y.SplunkO11yMetricsClient;
 import com.smartjmeter.report.ReportGenerator;
+import com.smartjmeter.splunk.AsyncBatchingHECClient;
 import com.smartjmeter.splunk.SplunkHECClient;
 import com.smartjmeter.splunk.SplunkSearchClient;
 import com.smartjmeter.store.LocalJsonStore;
@@ -49,6 +50,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
 
     private PluginConfig config;
     private SplunkHECClient splunk;
+    private AsyncBatchingHECClient splunkBatch;
     private LocalJsonStore localStore;
     private final List<JMeterMetric> allMetrics = new CopyOnWriteArrayList<>();
 
@@ -65,6 +67,10 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_LOCAL_STORE_PATH, "jmeter-metrics.json");
         args.addArgument(PluginConfig.PARAM_ENABLE_SPLUNK, "true");
         args.addArgument(PluginConfig.PARAM_ENABLE_LOCAL_STORE, "true");
+        args.addArgument(PluginConfig.PARAM_HEC_BATCH_ENABLED, "false");
+        args.addArgument(PluginConfig.PARAM_HEC_BATCH_SIZE, "100");
+        args.addArgument(PluginConfig.PARAM_HEC_FLUSH_INTERVAL_MS, "1000");
+        args.addArgument(PluginConfig.PARAM_HEC_QUEUE_CAPACITY, "10000");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -96,10 +102,20 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         this.config = PluginConfig.fromContext(context);
 
         if (config.isSplunkEnabled()) {
-            this.splunk = new SplunkHECClient(
-                    config.getSplunkUrl(),
-                    config.getSplunkToken(),
-                    config.getSplunkIndex());
+            if (config.isHecBatchEnabled()) {
+                this.splunkBatch = new AsyncBatchingHECClient(
+                        config.getSplunkUrl(),
+                        config.getSplunkToken(),
+                        config.getSplunkIndex(),
+                        config.getHecBatchSize(),
+                        config.getHecFlushIntervalMs(),
+                        config.getHecQueueCapacity());
+            } else {
+                this.splunk = new SplunkHECClient(
+                        config.getSplunkUrl(),
+                        config.getSplunkToken(),
+                        config.getSplunkIndex());
+            }
         }
         if (config.isLocalStoreEnabled()) {
             this.localStore = new LocalJsonStore(config.getLocalStorePath());
@@ -128,7 +144,9 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             if (localStore != null) {
                 localStore.append(metric);
             }
-            if (splunk != null) {
+            if (splunkBatch != null) {
+                splunkBatch.send(metric);
+            } else if (splunk != null) {
                 splunk.send(metric);
             }
         }
@@ -137,6 +155,9 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
     @Override
     public void teardownTest(BackendListenerContext context) throws Exception {
         try {
+            if (splunkBatch != null) {
+                splunkBatch.close();
+            }
             Map<String, Object> aggregate = MetricAggregator.aggregate(allMetrics);
             Map<String, Object> correlation = runCorrelation();
             Map<String, List<Map<String, Object>>> o11y = runO11yFetch(aggregate);

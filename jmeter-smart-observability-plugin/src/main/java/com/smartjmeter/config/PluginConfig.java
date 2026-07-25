@@ -19,6 +19,10 @@ public class PluginConfig {
     public static final String PARAM_LOCAL_STORE_PATH = "Local_Store_Path";
     public static final String PARAM_ENABLE_SPLUNK = "Enable_Splunk";
     public static final String PARAM_ENABLE_LOCAL_STORE = "Enable_Local_Store";
+    public static final String PARAM_HEC_BATCH_ENABLED = "HEC_Batch_Enabled";
+    public static final String PARAM_HEC_BATCH_SIZE = "HEC_Batch_Size";
+    public static final String PARAM_HEC_FLUSH_INTERVAL_MS = "HEC_Flush_Interval_Ms";
+    public static final String PARAM_HEC_QUEUE_CAPACITY = "HEC_Queue_Capacity";
 
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
@@ -53,6 +57,10 @@ public class PluginConfig {
     private final String localStorePath;
     private final boolean splunkEnabled;
     private final boolean localStoreEnabled;
+    private final boolean hecBatchEnabled;
+    private final int hecBatchSize;
+    private final long hecFlushIntervalMs;
+    private final int hecQueueCapacity;
 
     private final String splunkSearchUrl;
     private final String splunkSearchToken;
@@ -85,6 +93,10 @@ public class PluginConfig {
         this.localStorePath = b.localStorePath;
         this.splunkEnabled = b.splunkEnabled;
         this.localStoreEnabled = b.localStoreEnabled;
+        this.hecBatchEnabled = b.hecBatchEnabled;
+        this.hecBatchSize = b.hecBatchSize;
+        this.hecFlushIntervalMs = b.hecFlushIntervalMs;
+        this.hecQueueCapacity = b.hecQueueCapacity;
         this.splunkSearchUrl = b.splunkSearchUrl;
         this.splunkSearchToken = b.splunkSearchToken;
         this.splunkLogIndex = b.splunkLogIndex;
@@ -116,6 +128,10 @@ public class PluginConfig {
                 .localStorePath(ctx.getParameter(PARAM_LOCAL_STORE_PATH, "jmeter-metrics.json"))
                 .splunkEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_SPLUNK, "true")))
                 .localStoreEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_LOCAL_STORE, "true")))
+                .hecBatchEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_HEC_BATCH_ENABLED, "false")))
+                .hecBatchSize((int) parseLong(ctx.getParameter(PARAM_HEC_BATCH_SIZE, "100"), 100))
+                .hecFlushIntervalMs(parseLong(ctx.getParameter(PARAM_HEC_FLUSH_INTERVAL_MS, "1000"), 1000))
+                .hecQueueCapacity((int) parseLong(ctx.getParameter(PARAM_HEC_QUEUE_CAPACITY, "10000"), 10000))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -164,6 +180,10 @@ public class PluginConfig {
     public String getLocalStorePath() { return localStorePath; }
     public boolean isSplunkEnabled() { return splunkEnabled; }
     public boolean isLocalStoreEnabled() { return localStoreEnabled; }
+    public boolean isHecBatchEnabled() { return hecBatchEnabled; }
+    public int getHecBatchSize() { return hecBatchSize; }
+    public long getHecFlushIntervalMs() { return hecFlushIntervalMs; }
+    public int getHecQueueCapacity() { return hecQueueCapacity; }
     public String getSplunkSearchUrl() { return splunkSearchUrl; }
     public String getSplunkSearchToken() { return splunkSearchToken; }
     public String getSplunkLogIndex() { return splunkLogIndex; }
@@ -193,6 +213,10 @@ public class PluginConfig {
         private String localStorePath = "jmeter-metrics.json";
         private boolean splunkEnabled = true;
         private boolean localStoreEnabled = true;
+        private boolean hecBatchEnabled = false;
+        private int hecBatchSize = 100;
+        private long hecFlushIntervalMs = 1000;
+        private int hecQueueCapacity = 10_000;
         private String splunkSearchUrl = "";
         private String splunkSearchToken = "";
         private String splunkLogIndex = "app";
@@ -221,6 +245,10 @@ public class PluginConfig {
         public Builder localStorePath(String v) { this.localStorePath = v; return this; }
         public Builder splunkEnabled(boolean v) { this.splunkEnabled = v; return this; }
         public Builder localStoreEnabled(boolean v) { this.localStoreEnabled = v; return this; }
+        public Builder hecBatchEnabled(boolean v) { this.hecBatchEnabled = v; return this; }
+        public Builder hecBatchSize(int v) { this.hecBatchSize = v; return this; }
+        public Builder hecFlushIntervalMs(long v) { this.hecFlushIntervalMs = v; return this; }
+        public Builder hecQueueCapacity(int v) { this.hecQueueCapacity = v; return this; }
         public Builder splunkSearchUrl(String v) { this.splunkSearchUrl = v; return this; }
         public Builder splunkSearchToken(String v) { this.splunkSearchToken = v; return this; }
         public Builder splunkLogIndex(String v) { this.splunkLogIndex = v; return this; }

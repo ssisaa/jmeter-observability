@@ -21,11 +21,14 @@ class LlmAndAnalyzerTest {
         assertEquals(LlmClient.Provider.ANTHROPIC, LlmClient.Provider.parse("Claude"));
         assertEquals(LlmClient.Provider.GEMINI, LlmClient.Provider.parse("google"));
         assertEquals(LlmClient.Provider.GROK, LlmClient.Provider.parse("xai"));
+        assertEquals(LlmClient.Provider.GROQ, LlmClient.Provider.parse("groq"));
 
         assertEquals("gpt-4o-mini", LlmClient.Provider.OPENAI.defaultModel());
         assertEquals("claude-sonnet-4-5-20250929", LlmClient.Provider.ANTHROPIC.defaultModel());
         assertEquals("gemini-2.5-flash", LlmClient.Provider.GEMINI.defaultModel());
         assertEquals("grok-4.5", LlmClient.Provider.GROK.defaultModel());
+        assertEquals("llama-3.3-70b-versatile", LlmClient.Provider.GROQ.defaultModel());
+        assertEquals("https://api.groq.com/openai", LlmClient.Provider.GROQ.defaultBaseUrl());
     }
 
     @Test

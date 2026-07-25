@@ -29,7 +29,7 @@ public class LlmClient {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public enum Provider {
-        OPENAI, ANTHROPIC, GEMINI, GROK;
+        OPENAI, ANTHROPIC, GEMINI, GROK, GROQ;
 
         public static Provider parse(String s) {
             if (s == null) return OPENAI;
@@ -37,6 +37,7 @@ public class LlmClient {
                 case "anthropic", "claude" -> ANTHROPIC;
                 case "gemini", "google" -> GEMINI;
                 case "grok", "xai" -> GROK;
+                case "groq" -> GROQ;
                 default -> OPENAI;
             };
         }
@@ -47,6 +48,7 @@ public class LlmClient {
                 case ANTHROPIC -> "claude-sonnet-4-5-20250929";
                 case GEMINI -> "gemini-2.5-flash";
                 case GROK -> "grok-4.5";
+                case GROQ -> "llama-3.3-70b-versatile";
             };
         }
 
@@ -56,6 +58,7 @@ public class LlmClient {
                 case ANTHROPIC -> "https://api.anthropic.com";
                 case GEMINI -> "https://generativelanguage.googleapis.com";
                 case GROK -> "https://api.x.ai";
+                case GROQ -> "https://api.groq.com/openai";
             };
         }
     }
@@ -99,7 +102,7 @@ public class LlmClient {
             throw new IllegalStateException("LLM API key not configured");
         }
         return switch (provider) {
-            case OPENAI, GROK -> callOpenAiCompatible(systemPrompt, userPrompt);
+            case OPENAI, GROK, GROQ -> callOpenAiCompatible(systemPrompt, userPrompt);
             case ANTHROPIC -> callAnthropic(systemPrompt, userPrompt);
             case GEMINI -> callGemini(systemPrompt, userPrompt);
         };

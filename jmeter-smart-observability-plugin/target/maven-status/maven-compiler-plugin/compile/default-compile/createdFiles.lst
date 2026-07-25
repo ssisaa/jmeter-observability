@@ -6,6 +6,7 @@ com/smartjmeter/correlate/CorrelationEngine.class
 com/smartjmeter/SmartObservabilityBackendListener.class
 com/smartjmeter/ai/AIAnalyzer.class
 com/smartjmeter/store/LocalJsonStore.class
+com/smartjmeter/splunk/AsyncBatchingHECClient.class
 com/smartjmeter/splunk/SplunkHECClient.class
 com/smartjmeter/model/JMeterMetric.class
 com/smartjmeter/config/PluginConfig.class

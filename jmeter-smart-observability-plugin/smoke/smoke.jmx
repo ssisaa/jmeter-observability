@@ -58,12 +58,12 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="Splunk_URL" elementType="Argument">
                 <stringProp name="Argument.name">Splunk_URL</stringProp>
-                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.value">${__P(hec.url,)}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="Splunk_Token" elementType="Argument">
                 <stringProp name="Argument.name">Splunk_Token</stringProp>
-                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.value">${__P(hec.token,)}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="Splunk_Index" elementType="Argument">
@@ -93,12 +93,32 @@
               </elementProp>
               <elementProp name="Enable_Splunk" elementType="Argument">
                 <stringProp name="Argument.name">Enable_Splunk</stringProp>
-                <stringProp name="Argument.value">false</stringProp>
+                <stringProp name="Argument.value">${__P(hec.enabled,false)}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="Enable_Local_Store" elementType="Argument">
                 <stringProp name="Argument.name">Enable_Local_Store</stringProp>
                 <stringProp name="Argument.value">true</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="HEC_Batch_Enabled" elementType="Argument">
+                <stringProp name="Argument.name">HEC_Batch_Enabled</stringProp>
+                <stringProp name="Argument.value">${__P(hec.batch,false)}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="HEC_Batch_Size" elementType="Argument">
+                <stringProp name="Argument.name">HEC_Batch_Size</stringProp>
+                <stringProp name="Argument.value">8</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="HEC_Flush_Interval_Ms" elementType="Argument">
+                <stringProp name="Argument.name">HEC_Flush_Interval_Ms</stringProp>
+                <stringProp name="Argument.value">200</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="HEC_Queue_Capacity" elementType="Argument">
+                <stringProp name="Argument.name">HEC_Queue_Capacity</stringProp>
+                <stringProp name="Argument.value">10000</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="Splunk_Search_URL" elementType="Argument">
@@ -163,22 +183,22 @@
               </elementProp>
               <elementProp name="Enable_LLM" elementType="Argument">
                 <stringProp name="Argument.name">Enable_LLM</stringProp>
-                <stringProp name="Argument.value">false</stringProp>
+                <stringProp name="Argument.value">true</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="LLM_Provider" elementType="Argument">
                 <stringProp name="Argument.name">LLM_Provider</stringProp>
-                <stringProp name="Argument.value">openai</stringProp>
+                <stringProp name="Argument.value">${__P(llm.provider,gemini)}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="LLM_Model" elementType="Argument">
                 <stringProp name="Argument.name">LLM_Model</stringProp>
-                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.value">${__P(llm.model,)}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="LLM_API_Key" elementType="Argument">
                 <stringProp name="Argument.name">LLM_API_Key</stringProp>
-                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.value">${__P(llm.key,)}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
               <elementProp name="LLM_API_Key_Env" elementType="Argument">
