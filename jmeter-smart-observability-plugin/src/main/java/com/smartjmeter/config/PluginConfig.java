@@ -9,6 +9,7 @@ import org.apache.jmeter.visualizers.backend.BackendListenerContext;
  */
 public class PluginConfig {
 
+    // Phase 1
     public static final String PARAM_SPLUNK_URL = "Splunk_URL";
     public static final String PARAM_SPLUNK_TOKEN = "Splunk_Token";
     public static final String PARAM_SPLUNK_INDEX = "Splunk_Index";
@@ -19,13 +20,29 @@ public class PluginConfig {
     public static final String PARAM_ENABLE_SPLUNK = "Enable_Splunk";
     public static final String PARAM_ENABLE_LOCAL_STORE = "Enable_Local_Store";
 
-    // Phase 2: correlation
+    // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
     public static final String PARAM_SPLUNK_SEARCH_TOKEN = "Splunk_Search_Token";
     public static final String PARAM_SPLUNK_LOG_INDEX = "Splunk_Log_Index";
     public static final String PARAM_ENABLE_CORRELATION = "Enable_Correlation";
     public static final String PARAM_CORRELATION_WINDOW_SECONDS = "Correlation_Window_Seconds";
     public static final String PARAM_CORRELATION_OUTPUT_PATH = "Correlation_Output_Path";
+
+    // Phase 3 - Splunk Observability Cloud metrics
+    public static final String PARAM_O11Y_URL = "O11y_API_URL";
+    public static final String PARAM_O11Y_TOKEN = "O11y_Token";
+    public static final String PARAM_O11Y_METRICS = "O11y_Metrics";
+    public static final String PARAM_O11Y_RESOLUTION_MS = "O11y_Resolution_Ms";
+    public static final String PARAM_ENABLE_O11Y = "Enable_O11y";
+    public static final String PARAM_O11Y_OUTPUT_PATH = "O11y_Output_Path";
+
+    // Phase 4 - LLM analysis
+    public static final String PARAM_ENABLE_LLM = "Enable_LLM";
+    public static final String PARAM_LLM_PROVIDER = "LLM_Provider";
+    public static final String PARAM_LLM_MODEL = "LLM_Model";
+    public static final String PARAM_LLM_API_KEY = "LLM_API_Key";
+    public static final String PARAM_LLM_API_KEY_ENV = "LLM_API_Key_Env";
+    public static final String PARAM_LLM_BASE_URL = "LLM_Base_URL";
 
     private final String splunkUrl;
     private final String splunkToken;
@@ -44,6 +61,20 @@ public class PluginConfig {
     private final long correlationWindowSeconds;
     private final String correlationOutputPath;
 
+    private final String o11yUrl;
+    private final String o11yToken;
+    private final String o11yMetrics;
+    private final long o11yResolutionMs;
+    private final boolean o11yEnabled;
+    private final String o11yOutputPath;
+
+    private final boolean llmEnabled;
+    private final String llmProvider;
+    private final String llmModel;
+    private final String llmApiKey;
+    private final String llmApiKeyEnv;
+    private final String llmBaseUrl;
+
     private PluginConfig(Builder b) {
         this.splunkUrl = b.splunkUrl;
         this.splunkToken = b.splunkToken;
@@ -60,6 +91,18 @@ public class PluginConfig {
         this.correlationEnabled = b.correlationEnabled;
         this.correlationWindowSeconds = b.correlationWindowSeconds;
         this.correlationOutputPath = b.correlationOutputPath;
+        this.o11yUrl = b.o11yUrl;
+        this.o11yToken = b.o11yToken;
+        this.o11yMetrics = b.o11yMetrics;
+        this.o11yResolutionMs = b.o11yResolutionMs;
+        this.o11yEnabled = b.o11yEnabled;
+        this.o11yOutputPath = b.o11yOutputPath;
+        this.llmEnabled = b.llmEnabled;
+        this.llmProvider = b.llmProvider;
+        this.llmModel = b.llmModel;
+        this.llmApiKey = b.llmApiKey;
+        this.llmApiKeyEnv = b.llmApiKeyEnv;
+        this.llmBaseUrl = b.llmBaseUrl;
     }
 
     public static PluginConfig fromContext(BackendListenerContext ctx) {
@@ -79,11 +122,37 @@ public class PluginConfig {
                 .correlationEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_CORRELATION, "false")))
                 .correlationWindowSeconds(parseLong(ctx.getParameter(PARAM_CORRELATION_WINDOW_SECONDS, "30"), 30))
                 .correlationOutputPath(ctx.getParameter(PARAM_CORRELATION_OUTPUT_PATH, "log-correlation.json"))
+                .o11yUrl(ctx.getParameter(PARAM_O11Y_URL, ""))
+                .o11yToken(ctx.getParameter(PARAM_O11Y_TOKEN, ""))
+                .o11yMetrics(ctx.getParameter(PARAM_O11Y_METRICS,
+                        "cpu.utilization,memory.utilization,jvm.gc.collection.count,jvm.threads.count,db.latency,k8s.pod.cpu.usage"))
+                .o11yResolutionMs(parseLong(ctx.getParameter(PARAM_O11Y_RESOLUTION_MS, "10000"), 10000))
+                .o11yEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_O11Y, "false")))
+                .o11yOutputPath(ctx.getParameter(PARAM_O11Y_OUTPUT_PATH, "o11y-metrics.json"))
+                .llmEnabled(Boolean.parseBoolean(ctx.getParameter(PARAM_ENABLE_LLM, "false")))
+                .llmProvider(ctx.getParameter(PARAM_LLM_PROVIDER, "openai"))
+                .llmModel(ctx.getParameter(PARAM_LLM_MODEL, ""))
+                .llmApiKey(ctx.getParameter(PARAM_LLM_API_KEY, ""))
+                .llmApiKeyEnv(ctx.getParameter(PARAM_LLM_API_KEY_ENV, ""))
+                .llmBaseUrl(ctx.getParameter(PARAM_LLM_BASE_URL, ""))
                 .build();
     }
 
     private static long parseLong(String s, long defaultVal) {
         try { return Long.parseLong(s); } catch (Exception e) { return defaultVal; }
+    }
+
+    /**
+     * Resolve the LLM API key using the "GUI param wins over env var"
+     * contract. Returns an empty string if neither is set.
+     */
+    public String resolveLlmApiKey() {
+        if (llmApiKey != null && !llmApiKey.isBlank()) return llmApiKey;
+        if (llmApiKeyEnv != null && !llmApiKeyEnv.isBlank()) {
+            String v = System.getenv(llmApiKeyEnv);
+            if (v != null && !v.isBlank()) return v;
+        }
+        return "";
     }
 
     public String getSplunkUrl() { return splunkUrl; }
@@ -101,6 +170,18 @@ public class PluginConfig {
     public boolean isCorrelationEnabled() { return correlationEnabled; }
     public long getCorrelationWindowSeconds() { return correlationWindowSeconds; }
     public String getCorrelationOutputPath() { return correlationOutputPath; }
+    public String getO11yUrl() { return o11yUrl; }
+    public String getO11yToken() { return o11yToken; }
+    public String getO11yMetrics() { return o11yMetrics; }
+    public long getO11yResolutionMs() { return o11yResolutionMs; }
+    public boolean isO11yEnabled() { return o11yEnabled; }
+    public String getO11yOutputPath() { return o11yOutputPath; }
+    public boolean isLlmEnabled() { return llmEnabled; }
+    public String getLlmProvider() { return llmProvider; }
+    public String getLlmModel() { return llmModel; }
+    public String getLlmApiKey() { return llmApiKey; }
+    public String getLlmApiKeyEnv() { return llmApiKeyEnv; }
+    public String getLlmBaseUrl() { return llmBaseUrl; }
 
     public static class Builder {
         private String splunkUrl;
@@ -118,6 +199,18 @@ public class PluginConfig {
         private boolean correlationEnabled = false;
         private long correlationWindowSeconds = 30;
         private String correlationOutputPath = "log-correlation.json";
+        private String o11yUrl = "";
+        private String o11yToken = "";
+        private String o11yMetrics = "";
+        private long o11yResolutionMs = 10_000;
+        private boolean o11yEnabled = false;
+        private String o11yOutputPath = "o11y-metrics.json";
+        private boolean llmEnabled = false;
+        private String llmProvider = "openai";
+        private String llmModel = "";
+        private String llmApiKey = "";
+        private String llmApiKeyEnv = "";
+        private String llmBaseUrl = "";
 
         public Builder splunkUrl(String v) { this.splunkUrl = v; return this; }
         public Builder splunkToken(String v) { this.splunkToken = v; return this; }
@@ -134,6 +227,18 @@ public class PluginConfig {
         public Builder correlationEnabled(boolean v) { this.correlationEnabled = v; return this; }
         public Builder correlationWindowSeconds(long v) { this.correlationWindowSeconds = v; return this; }
         public Builder correlationOutputPath(String v) { this.correlationOutputPath = v; return this; }
+        public Builder o11yUrl(String v) { this.o11yUrl = v; return this; }
+        public Builder o11yToken(String v) { this.o11yToken = v; return this; }
+        public Builder o11yMetrics(String v) { this.o11yMetrics = v; return this; }
+        public Builder o11yResolutionMs(long v) { this.o11yResolutionMs = v; return this; }
+        public Builder o11yEnabled(boolean v) { this.o11yEnabled = v; return this; }
+        public Builder o11yOutputPath(String v) { this.o11yOutputPath = v; return this; }
+        public Builder llmEnabled(boolean v) { this.llmEnabled = v; return this; }
+        public Builder llmProvider(String v) { this.llmProvider = v; return this; }
+        public Builder llmModel(String v) { this.llmModel = v; return this; }
+        public Builder llmApiKey(String v) { this.llmApiKey = v; return this; }
+        public Builder llmApiKeyEnv(String v) { this.llmApiKeyEnv = v; return this; }
+        public Builder llmBaseUrl(String v) { this.llmBaseUrl = v; return this; }
 
         public PluginConfig build() { return new PluginConfig(this); }
     }

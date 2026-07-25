@@ -1,8 +1,12 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/SmartObservabilityBackendListener.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/AIAnalyzer.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/LlmClient.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/MetricAggregator.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/PromptBuilder.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/config/PluginConfig.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/correlate/CorrelationEngine.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/model/JMeterMetric.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/o11y/SplunkO11yMetricsClient.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/ReportGenerator.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/splunk/SplunkHECClient.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/splunk/SplunkSearchClient.java

@@ -131,6 +131,66 @@
                 <stringProp name="Argument.value">/tmp/smoke-out/log-correlation.json</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
+              <elementProp name="O11y_API_URL" elementType="Argument">
+                <stringProp name="Argument.name">O11y_API_URL</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="O11y_Token" elementType="Argument">
+                <stringProp name="Argument.name">O11y_Token</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="O11y_Metrics" elementType="Argument">
+                <stringProp name="Argument.name">O11y_Metrics</stringProp>
+                <stringProp name="Argument.value">cpu.utilization,memory.utilization,jvm.gc.collection.count,jvm.threads.count,db.latency,k8s.pod.cpu.usage</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="O11y_Resolution_Ms" elementType="Argument">
+                <stringProp name="Argument.name">O11y_Resolution_Ms</stringProp>
+                <stringProp name="Argument.value">10000</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Enable_O11y" elementType="Argument">
+                <stringProp name="Argument.name">Enable_O11y</stringProp>
+                <stringProp name="Argument.value">true</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="O11y_Output_Path" elementType="Argument">
+                <stringProp name="Argument.name">O11y_Output_Path</stringProp>
+                <stringProp name="Argument.value">/tmp/smoke-out/o11y-metrics.json</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="Enable_LLM" elementType="Argument">
+                <stringProp name="Argument.name">Enable_LLM</stringProp>
+                <stringProp name="Argument.value">false</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="LLM_Provider" elementType="Argument">
+                <stringProp name="Argument.name">LLM_Provider</stringProp>
+                <stringProp name="Argument.value">openai</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="LLM_Model" elementType="Argument">
+                <stringProp name="Argument.name">LLM_Model</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="LLM_API_Key" elementType="Argument">
+                <stringProp name="Argument.name">LLM_API_Key</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="LLM_API_Key_Env" elementType="Argument">
+                <stringProp name="Argument.name">LLM_API_Key_Env</stringProp>
+                <stringProp name="Argument.value">OPENAI_API_KEY</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="LLM_Base_URL" elementType="Argument">
+                <stringProp name="Argument.name">LLM_Base_URL</stringProp>
+                <stringProp name="Argument.value"></stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
             </collectionProp>
           </elementProp>
           <stringProp name="classname">com.smartjmeter.SmartObservabilityBackendListener</stringProp>

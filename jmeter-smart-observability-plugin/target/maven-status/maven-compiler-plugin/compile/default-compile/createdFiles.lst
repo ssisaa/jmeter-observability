@@ -1,4 +1,6 @@
+com/smartjmeter/ai/MetricAggregator.class
 com/smartjmeter/config/PluginConfig$Builder.class
+com/smartjmeter/ai/LlmClient$Provider.class
 com/smartjmeter/report/ReportGenerator.class
 com/smartjmeter/correlate/CorrelationEngine.class
 com/smartjmeter/SmartObservabilityBackendListener.class
@@ -8,4 +10,7 @@ com/smartjmeter/splunk/SplunkHECClient.class
 com/smartjmeter/model/JMeterMetric.class
 com/smartjmeter/config/PluginConfig.class
 com/smartjmeter/correlate/CorrelationEngine$TimeWindow.class
+com/smartjmeter/ai/LlmClient.class
 com/smartjmeter/splunk/SplunkSearchClient.class
+com/smartjmeter/ai/PromptBuilder.class
+com/smartjmeter/o11y/SplunkO11yMetricsClient.class
