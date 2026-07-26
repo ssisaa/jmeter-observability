@@ -177,10 +177,12 @@ const Home = () => {
       </main>
 
       <footer className="page-footer">
-        Direct download endpoints:{" "}
+        Direct endpoints:{" "}
         <code>/api/downloads/plugin.jar</code>,{" "}
         <code>/api/downloads/demo/*</code>,{" "}
-        <code>/api/downloads/smoke/*</code>
+        <code>/api/downloads/smoke/*</code>,{" "}
+        <code>/api/downloads/docs/*</code>,{" "}
+        <code>/api/downloads/docker/*</code>
       </footer>
     </div>
   );

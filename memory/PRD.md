@@ -41,15 +41,26 @@ Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
 - Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **83/83 pass** (`mvn clean test`) as of v2.0.3.
-- **9/9 backend pytest pass** (`/app/backend/tests/test_downloads.py`) covering download endpoints.
+- **82/82 pass** (`mvn clean test`) as of v2.0.4.
+- **17/17 backend pytest pass** (`/app/backend/tests/test_downloads.py`) covering plugin download + docs + docker endpoints.
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-2.0.3.jar` (~41 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
-- **Downloadable via preview URL**: `/api/downloads/plugin.jar` (jar), `/api/downloads/demo/*` (demo HTML/PDF/PPTX/JSON/CSV), `/api/downloads/smoke/*` (notifier smoke deck).
-- **Frontend home page** lists the jar, demo report and smoke deck with one-click download links + v2.0.3 changelog.
-- `docs/demo/Performance_Report.{html,pdf,pptx,json,csv}` - signed public demo report.
+- `target/jmeter-smart-observability-plugin-2.0.4.jar` (~18 MB fat jar; PDF/PPTX libs removed) - drop into `$JMETER_HOME/lib/ext/`.
+- **Downloadable via preview URL**: `/api/downloads/plugin.jar`, `/api/downloads/demo/*` (HTML/JSON/CSV only), `/api/downloads/smoke/*`, `/api/downloads/docs/*`, `/api/downloads/docker/*`.
+- **Frontend home page** now shows 6 sections (Plugin binary / Demo report / Smoke deck / Documentation / Docker bundle / Changelog).
+- `docs/PARAMETERS.md` (~19 KB) - every Backend Listener parameter documented with sample values and where to source them.
+- `docker/` bundle: `docker-compose.yml`, three Dockerfiles, splunk mock, sample JMX, README. `docker compose up` bootstraps Analysis Service + Splunk mock + JMeter runner in ~2 minutes.
 - `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
+
+## v2.0.4 (this release)
+Feb 2026:
+- **PDF and PPTX exports REMOVED** - HTML-only reporting (fat jar shrank from 41 MB to 18 MB, no openhtmltopdf / POI surface).
+- **Management-oriented Visual Analytics** - KPI hero strip (samples / error rate / p95 / apdex) + TPS/HPS/RTS/error-rate line charts + latency percentile grouped bars + latency distribution histogram + top-N throughput bars. Verdict-Sankey and dependency-map removed.
+- **Baseline comparison chart** - current run's p95 next to previous baseline and historic average, coloured by delta, with a spark-line of the last N runs. Driven by `CapacityForecast.loadHistorySnapshots()`.
+- **Time-series bucketing in `MetricAggregator`** - 1-second buckets (capped at 300 to stay readable). Powers TPS/HPS/RTS/error-rate charts.
+- **Parameter reference doc** - `docs/PARAMETERS.md` with every Backend Listener field, sample value and where to source it.
+- **One-click Docker demo** - Docker Compose bundle spins Analysis Service + Splunk HEC mock + JMeter runner. New team goes zero-to-full-demo in ~2 minutes.
+- **Java 17 target** - dropped from Java 21 to Java 17 for wider CI compatibility (no 21-only features were in use).
 
 ## v2.0.3 (this release)
 Feb 2026:
