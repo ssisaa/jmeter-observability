@@ -160,6 +160,62 @@ public final class CapacityForecast {
         }
     }
 
+    /**
+     * v2.0.3 Rolling baselines: delete snapshots older than {@code maxAgeDays}
+     * AND, if the remainder still exceeds {@code maxCount}, keep only the
+     * newest {@code maxCount} files. Best-effort; never throws.
+     *
+     * @return number of files removed.
+     */
+    public static int prune(Path historyDir, int maxCount, int maxAgeDays) {
+        if (historyDir == null || !Files.isDirectory(historyDir)) return 0;
+        int removed = 0;
+        long ageCutoffMs = maxAgeDays <= 0
+                ? Long.MIN_VALUE
+                : System.currentTimeMillis() - maxAgeDays * 86_400_000L;
+        List<Path> snapshots = new ArrayList<>();
+        try (Stream<Path> s = Files.list(historyDir)) {
+            s.filter(p -> p.getFileName().toString().startsWith("snapshot-")
+                       && p.getFileName().toString().endsWith(".json"))
+             .forEach(snapshots::add);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "prune list failed for " + historyDir, e);
+            return 0;
+        }
+
+        // 1) delete by age
+        for (Path p : new ArrayList<>(snapshots)) {
+            long ts = extractSnapshotTimestamp(p);
+            if (ts > 0 && ts < ageCutoffMs) {
+                try { Files.deleteIfExists(p); removed++; snapshots.remove(p); }
+                catch (Exception e) { LOG.log(Level.FINE, "prune-by-age skip " + p, e); }
+            }
+        }
+        // 2) delete by count (oldest first)
+        if (maxCount > 0 && snapshots.size() > maxCount) {
+            snapshots.sort(Comparator.comparingLong(CapacityForecast::extractSnapshotTimestamp));
+            int excess = snapshots.size() - maxCount;
+            for (int i = 0; i < excess; i++) {
+                try { Files.deleteIfExists(snapshots.get(i)); removed++; }
+                catch (Exception e) { LOG.log(Level.FINE, "prune-by-count skip " + snapshots.get(i), e); }
+            }
+        }
+        if (removed > 0) LOG.log(Level.INFO, "Rolling baselines: pruned {0} snapshots from {1}",
+                new Object[]{removed, historyDir});
+        return removed;
+    }
+
+    private static long extractSnapshotTimestamp(Path p) {
+        String n = p.getFileName().toString();
+        // snapshot-<ms>.json
+        try {
+            String core = n.substring("snapshot-".length(), n.length() - ".json".length());
+            return Long.parseLong(core);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     /* ---------------- helpers ---------------- */
 
     private static List<double[]> loadSeries(Path dir) {

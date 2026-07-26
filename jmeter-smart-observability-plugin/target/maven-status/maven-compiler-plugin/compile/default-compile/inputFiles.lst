@@ -4,6 +4,8 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/LlmClient.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/MetricAggregator.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/PromptBuilder.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/analysis/AnalysisServer.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/analysis/AnalysisServiceClient.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/baseline/BaselineDiff.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/baseline/BaselineStore.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ci/CiGate.java
@@ -11,11 +13,13 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/config/PluginConfig.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/correlate/CorrelationEngine.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/correlate/RuleEngine.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/demo/DemoReport.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/forecast/CapacityForecast.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/metrics/GenericHttpMetricsCollector.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/metrics/NamedCollectorsRunner.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/model/JMeterMetric.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/notify/Notifier.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/notify/NotifierCooldown.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/notify/Notifiers.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/o11y/SplunkO11yMetricsClient.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/CsvExporter.java

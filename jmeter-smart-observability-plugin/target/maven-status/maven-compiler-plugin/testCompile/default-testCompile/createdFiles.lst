@@ -1,3 +1,4 @@
+com/smartjmeter/forecast/RollingBaselinePruneTest.class
 com/smartjmeter/SmartObservabilityPluginTest.class
 com/smartjmeter/forecast/CapacityForecastTest.class
 com/smartjmeter/splunk/SplunkSearchClientTest.class
@@ -9,8 +10,11 @@ com/smartjmeter/ai/LlmAndAnalyzerTest.class
 com/smartjmeter/baseline/BaselineTest.class
 com/smartjmeter/correlate/CorrelationEngineTest.class
 com/smartjmeter/report/PptxExporterTest.class
+com/smartjmeter/analysis/AnalysisServiceClientTest.class
+com/smartjmeter/analysis/AnalysisServerTest.class
 com/smartjmeter/report/SvgChartsTest.class
 com/smartjmeter/config/PluginConfigPathTest.class
 com/smartjmeter/splunk/AsyncBatchingHECClientTest.class
 com/smartjmeter/metrics/NamedCollectorsRunnerTest.class
 com/smartjmeter/report/ReportV202SectionsTest.class
+com/smartjmeter/notify/NotifierCooldownTest.class

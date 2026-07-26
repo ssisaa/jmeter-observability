@@ -62,6 +62,12 @@ public class PluginConfig {
     public static final String PARAM_BASELINE_HISTORY_DIR = "Baseline_History_Dir";
     public static final String PARAM_FORECAST_SLA_P95_MS = "Forecast_Sla_P95_Ms";
 
+    // v2.0.3 - rolling baselines + notifier cooldowns + analysis service
+    public static final String PARAM_BASELINE_HISTORY_MAX = "Baseline_History_Max";
+    public static final String PARAM_BASELINE_HISTORY_MAX_DAYS = "Baseline_History_Max_Days";
+    public static final String PARAM_NOTIFIER_COOLDOWN_SECONDS = "Notifier_Cooldown_Seconds";
+    public static final String PARAM_ANALYSIS_SERVICE_URL = "Analysis_Service_Url";
+
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
     public static final String PARAM_SPLUNK_SEARCH_TOKEN = "Splunk_Search_Token";
@@ -231,6 +237,10 @@ public class PluginConfig {
                 .putRaw(PARAM_METRIC_SOURCES_JSON, ctx.getParameter(PARAM_METRIC_SOURCES_JSON, "[]"))
                 .putRaw(PARAM_BASELINE_HISTORY_DIR, ctx.getParameter(PARAM_BASELINE_HISTORY_DIR, "baseline-history"))
                 .putRaw(PARAM_FORECAST_SLA_P95_MS, ctx.getParameter(PARAM_FORECAST_SLA_P95_MS, "1000"))
+                .putRaw(PARAM_BASELINE_HISTORY_MAX, ctx.getParameter(PARAM_BASELINE_HISTORY_MAX, "100"))
+                .putRaw(PARAM_BASELINE_HISTORY_MAX_DAYS, ctx.getParameter(PARAM_BASELINE_HISTORY_MAX_DAYS, "90"))
+                .putRaw(PARAM_NOTIFIER_COOLDOWN_SECONDS, ctx.getParameter(PARAM_NOTIFIER_COOLDOWN_SECONDS, "3600"))
+                .putRaw(PARAM_ANALYSIS_SERVICE_URL, ctx.getParameter(PARAM_ANALYSIS_SERVICE_URL, ""))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -315,6 +325,10 @@ public class PluginConfig {
     public String getMetricSourcesJson() { return raw(PARAM_METRIC_SOURCES_JSON, "[]"); }
     public String getBaselineHistoryDir() { return raw(PARAM_BASELINE_HISTORY_DIR, "baseline-history"); }
     public long getForecastSlaP95Ms() { return parseLong(raw(PARAM_FORECAST_SLA_P95_MS, "1000"), 1000L); }
+    public int getBaselineHistoryMax() { return (int) parseLong(raw(PARAM_BASELINE_HISTORY_MAX, "100"), 100L); }
+    public int getBaselineHistoryMaxDays() { return (int) parseLong(raw(PARAM_BASELINE_HISTORY_MAX_DAYS, "90"), 90L); }
+    public long getNotifierCooldownSeconds() { return parseLong(raw(PARAM_NOTIFIER_COOLDOWN_SECONDS, "3600"), 3600L); }
+    public String getAnalysisServiceUrl() { return raw(PARAM_ANALYSIS_SERVICE_URL, ""); }
 
     private final java.util.Map<String, String> raw = new java.util.HashMap<>();
     public String raw(String key, String defaultVal) {

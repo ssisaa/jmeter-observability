@@ -1,0 +1,213 @@
+{
+  "schema_version" : "report.v2.json",
+  "run_id" : "demo-1785047418025",
+  "test_name" : "demo-checkout-load-2.0.3",
+  "environment" : "staging",
+  "application" : "smart-shop",
+  "generated_at" : "2026-07-26T06:30:19.181584197Z",
+  "aggregate" : {
+    "overall" : {
+      "count" : 24871,
+      "errors" : 148,
+      "error_rate" : 0.005950705641108118,
+      "rt_avg_ms" : 187,
+      "rt_median_ms" : 152,
+      "rt_p95_ms" : 612,
+      "rt_p99_ms" : 1248,
+      "rt_max_ms" : 3984,
+      "start_ms" : 1785045618025,
+      "stop_ms" : 1785047418025
+    },
+    "per_transaction" : {
+      "GET /home" : {
+        "count" : 9824,
+        "errors" : 0,
+        "rt_min_ms" : 42,
+        "rt_avg_ms" : 55,
+        "rt_median_ms" : 15,
+        "rt_p95_ms" : 110,
+        "rt_max_ms" : 240,
+        "error_rate" : 0.0
+      },
+      "GET /product/{id}" : {
+        "count" : 6512,
+        "errors" : 6,
+        "rt_min_ms" : 88,
+        "rt_avg_ms" : 110,
+        "rt_median_ms" : 40,
+        "rt_p95_ms" : 260,
+        "rt_max_ms" : 610,
+        "error_rate" : 9.213759213759214E-4
+      },
+      "POST /cart" : {
+        "count" : 3218,
+        "errors" : 12,
+        "rt_min_ms" : 120,
+        "rt_avg_ms" : 145,
+        "rt_median_ms" : 55,
+        "rt_p95_ms" : 380,
+        "rt_max_ms" : 950,
+        "error_rate" : 0.0037290242386575512
+      },
+      "POST /checkout" : {
+        "count" : 2641,
+        "errors" : 82,
+        "rt_min_ms" : 220,
+        "rt_avg_ms" : 280,
+        "rt_median_ms" : 90,
+        "rt_p95_ms" : 780,
+        "rt_max_ms" : 2140,
+        "error_rate" : 0.03104884513441878
+      },
+      "POST /payment" : {
+        "count" : 2676,
+        "errors" : 48,
+        "rt_min_ms" : 260,
+        "rt_avg_ms" : 320,
+        "rt_median_ms" : 120,
+        "rt_p95_ms" : 940,
+        "rt_max_ms" : 3984,
+        "error_rate" : 0.017937219730941704
+      }
+    }
+  },
+  "scores" : {
+    "performance" : 82,
+    "infrastructure" : 88,
+    "application" : 78,
+    "database" : 84,
+    "observability" : 92,
+    "scalability" : 79,
+    "reliability" : 86,
+    "availability" : 95,
+    "composite_performance" : 84,
+    "release_readiness" : 74,
+    "production_confidence" : 74
+  },
+  "verdict" : {
+    "level" : "GO_WITH_CONDITIONS",
+    "production_confidence" : 74.2,
+    "risk_score" : 25.8,
+    "rationale" : "SLA holds on 4/5 transactions; /payment p99 breach and 1.8% checkout errors require a canary rollout.",
+    "deployment_recommendation" : "Canary 10% for 60 min",
+    "gates_passed" : [ "SLA", "Regression", "Observability", "Infrastructure" ],
+    "gates_failed" : [ "No critical findings" ],
+    "rollout_plan" : [ "Canary 10% for 60 min with elevated dashboards", "Ramp to 50% if p95 stays under 800 ms", "Full rollout once error rate < 0.3%" ],
+    "rollback_triggers" : [ "checkout p95 > 1500 ms", "payment errors > 3%", "any CloudWatch alarm ALARM" ]
+  },
+  "findings" : [ {
+    "id" : "R-LATENCY",
+    "title" : "payment p99 breach",
+    "category" : "latency",
+    "severity" : "HIGH",
+    "confidence" : 0.82,
+    "evidence" : "aggregate.per_transaction.POST /payment.rt_p99_ms=3984"
+  }, {
+    "id" : "R-ERR-RATE",
+    "title" : "checkout error rate 3.1%",
+    "category" : "reliability",
+    "severity" : "MEDIUM",
+    "confidence" : 0.71,
+    "evidence" : "aggregate.per_transaction.POST /checkout.error_rate=0.031"
+  }, {
+    "id" : "R-TAIL",
+    "title" : "heavy tail on /payment (p99 = 4.5x p95)",
+    "category" : "latency",
+    "severity" : "MEDIUM",
+    "confidence" : 0.68,
+    "evidence" : "rt_p99_ms/rt_p95_ms=4.24"
+  } ],
+  "baseline_diff" : {
+    "has_previous" : true,
+    "previous_at" : "2026-02-04 14:22 UTC",
+    "notable" : [ "POST /payment rt_p95 up 18% vs previous baseline", "POST /checkout error_rate up +1.4pp" ],
+    "overall" : {
+      "rt_p95_pct" : 18.4,
+      "error_rate_pp" : 0.4
+    }
+  },
+  "correlation" : {
+    "window_seconds" : 30,
+    "windows" : [ ],
+    "failure_count" : 148
+  },
+  "o11y_metrics" : { },
+  "cloudwatch" : { },
+  "ai_insights" : {
+    "structured" : true,
+    "markdown" : "## Root cause hypothesis\nPayment gateway upstream is the dominant contributor to p99 (4.5x p95 on POST /payment). Checkout errors correlate with the same latency spikes.\n\n## Recommended actions\n1. Enable circuit breaker on payment client (2s open threshold).\n2. Add idempotency retries on `/checkout` with jitter.\n3. Scale API replicas to 6 during 15:00-19:00 UTC.\n",
+    "business_impact" : {
+      "note" : "Assuming $45 AOV and current checkout drop-off.",
+      "usd_est" : 3780,
+      "lost_conversions_est" : 84
+    },
+    "capacity_estimate" : {
+      "cliff_tps" : 320,
+      "peak_supported_tps" : 260,
+      "months_headroom" : 4
+    }
+  },
+  "external_metrics" : {
+    "prometheus" : {
+      "cpu_saturation" : [ {
+        "value" : 0.62
+      }, {
+        "value" : 0.68
+      }, {
+        "value" : 0.71
+      }, {
+        "value" : 0.66
+      } ],
+      "request_error_rate" : [ {
+        "value" : 0.006
+      }, {
+        "value" : 0.008
+      }, {
+        "value" : 0.011
+      }, {
+        "value" : 0.009
+      } ]
+    },
+    "datadog" : {
+      "api_error_rate_pct" : [ {
+        "value" : 0.6
+      }, {
+        "value" : 0.8
+      }, {
+        "value" : 1.1
+      }, {
+        "value" : 0.9
+      } ],
+      "db_connection_saturation" : [ {
+        "value" : 0.52
+      }, {
+        "value" : 0.55
+      }, {
+        "value" : 0.63
+      } ]
+    },
+    "dynatrace" : {
+      "payment_latency_ms" : [ {
+        "value" : 820.0
+      }, {
+        "value" : 910.0
+      }, {
+        "value" : 1240.0
+      }, {
+        "value" : 1180.0
+      } ]
+    }
+  },
+  "capacity_forecast" : {
+    "insufficient" : false,
+    "samples" : 9,
+    "current_p95_ms" : 612.0,
+    "slope_ms_per_day" : 6.71,
+    "intercept_ms" : 449.69,
+    "sla_p95_ms" : 1000,
+    "days_to_breach_p50" : 58.0,
+    "days_to_breach_p90" : 57.9,
+    "verdict" : "OK",
+    "rationale" : "Trend at 6.71 ms/day is well within SLA horizon."
+  }
+}

@@ -115,6 +115,10 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_METRIC_SOURCES_JSON, "[]");
         args.addArgument(PluginConfig.PARAM_BASELINE_HISTORY_DIR, "baseline-history");
         args.addArgument(PluginConfig.PARAM_FORECAST_SLA_P95_MS, "1000");
+        args.addArgument(PluginConfig.PARAM_BASELINE_HISTORY_MAX, "100");
+        args.addArgument(PluginConfig.PARAM_BASELINE_HISTORY_MAX_DAYS, "90");
+        args.addArgument(PluginConfig.PARAM_NOTIFIER_COOLDOWN_SECONDS, "3600");
+        args.addArgument(PluginConfig.PARAM_ANALYSIS_SERVICE_URL, "");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -333,11 +337,16 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             // CI gate
             applyCiGate(verdict, config.resolvePath("."));
 
-            // Capacity forecast - append current p95 snapshot for future runs
+            // Capacity forecast - append current p95 snapshot for future runs,
+            // then prune per Rolling Baselines policy.
             try {
-                com.smartjmeter.forecast.CapacityForecast.appendSnapshot(
-                        config.resolvePath(config.getBaselineHistoryDir()), aggregate);
-            } catch (Exception e) { LOG.log(Level.WARNING, "Forecast snapshot failed", e); }
+                Path historyDir = config.resolvePath(config.getBaselineHistoryDir());
+                com.smartjmeter.forecast.CapacityForecast.appendSnapshot(historyDir, aggregate);
+                com.smartjmeter.forecast.CapacityForecast.prune(
+                        historyDir,
+                        config.getBaselineHistoryMax(),
+                        config.getBaselineHistoryMaxDays());
+            } catch (Exception e) { LOG.log(Level.WARNING, "Forecast snapshot/prune failed", e); }
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Teardown analysis pipeline failed", e);
         }
@@ -475,6 +484,20 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                                                      Map<String, Object> correlation,
                                                      Map<String, List<Map<String, Object>>> o11y,
                                                      Map<String, Object> cloudwatch) {
+        // v2.0.3: prefer shared Analysis Service when configured; falls back
+        // to the in-process LlmClient path if the URL is blank.
+        String analysisUrl = config.getAnalysisServiceUrl();
+        if (analysisUrl != null && !analysisUrl.isBlank()) {
+            try {
+                String userPrompt = PromptBuilder.buildUserPrompt(
+                        aggregate, scores, verdict, findings, baselineDiff, correlation, o11y, cloudwatch, Map.of());
+                return new com.smartjmeter.analysis.AnalysisServiceClient(analysisUrl, config.isTlsInsecure())
+                        .analyze(PromptBuilder.SYSTEM_PROMPT, userPrompt);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Analysis service call failed - falling back to in-process LLM", e);
+            }
+        }
+
         if (!config.isLlmEnabled()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("structured", false);
@@ -674,6 +697,10 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
     private void fireNotifications(Verdict verdict, Path reportPath) {
         try {
             String decision = verdict.level() == null ? "INSUFFICIENT_DATA" : verdict.level().name();
+            com.smartjmeter.notify.NotifierCooldown cooldown =
+                    new com.smartjmeter.notify.NotifierCooldown(
+                            config.resolvePath("notifier-cooldowns.json"),
+                            config.getNotifierCooldownSeconds());
             com.smartjmeter.notify.Notifier.NotificationPayload payload =
                     new com.smartjmeter.notify.Notifier.NotificationPayload(
                             config.getTestName(),
@@ -740,8 +767,15 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
 
             for (com.smartjmeter.notify.Notifier n : notifiers) {
                 if (n.isConfigured()) {
-                    try { n.notify(payload); LOG.log(Level.INFO, "Notified via {0}", n.name()); }
-                    catch (Exception ex) { LOG.log(Level.WARNING, "Notifier " + n.name() + " failed", ex); }
+                    if (!cooldown.allow(n.name(), decision, config.getTestName())) {
+                        LOG.log(Level.INFO, "Notifier {0} in cooldown - skipped", n.name());
+                        continue;
+                    }
+                    try {
+                        n.notify(payload);
+                        cooldown.record(n.name(), decision, config.getTestName());
+                        LOG.log(Level.INFO, "Notified via {0}", n.name());
+                    } catch (Exception ex) { LOG.log(Level.WARNING, "Notifier " + n.name() + " failed", ex); }
                 }
             }
         } catch (Exception e) {
