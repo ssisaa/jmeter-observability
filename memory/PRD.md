@@ -41,23 +41,30 @@ Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
 - Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **51/51 pass** (`mvn clean test`) as of v2.0.0.
+- **66/66 pass** (`mvn clean test`) as of v2.0.2.
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-2.0.0.jar` (~41 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
+- `target/jmeter-smart-observability-plugin-2.0.2.jar` (~41 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
 - `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
+- `smoke-notifiers/` - one-command demo (JMX + `.env.example` + `run-notifier-smoke.sh` + README) exercising Slack/Teams/Email/Jira/ServiceNow + CI gate.
 
-## v2.0.0 (this release - P0 + P1)
+## v2.0.2 (this release - P0+P1+P2+P3)
+Feb 2026:
+- **Named collectors** wired into their own report section and rule engine — Prometheus, Loki, Elastic, Datadog, New Relic, Dynatrace, Azure Monitor, GCP Ops (`metrics.NamedCollectorsRunner` + generic `R-EXT-CPU/ERR/LAT-*` rules).
+- **SVG charts** inline in HTML report — waterfall (per-txn p50/p95/max), verdict-Sankey (verdict → gates), transaction dependency map (sized by call count, coloured by error rate). All in `report.SvgCharts`.
+- **Capacity forecast** — `forecast.CapacityForecast` runs OLS + quantile regression over baseline snapshots (auto-appended each run under `Baseline_History_Dir`); reports "days to breach" at p50 and p90 envelope.
+- **Notifier smoke deck** — `smoke-notifiers/run-notifier-smoke.sh` runs a 5-loop JMeter test against `httpbin.org/status/500`, forcing NO_GO, fanning out to every configured sink, then exits 3 via the `CiGate` CLI so CI wiring is validated end-to-end.
+
+## v2.0.0 (previous release)
 Feb 2026:
 - **PDF export** — `report.PdfExporter` renders the HTML report via openhtmltopdf/PDFBox.
-- **PPTX export** — `report.PptxExporter` produces a 5-slide executive deck (title / verdict / scores / findings / rollout) via Apache POI XSLF.
-- **Notifiers** — `notify.Notifiers` ships five sinks: Slack webhook, Teams MessageCard, SMTP email (Jakarta Mail), Jira REST v3, ServiceNow Table API. All best-effort, never throw.
-- **CI gate** — `Fail_On_Verdict` param writes `ci-gate.json` at teardown; standalone `com.smartjmeter.ci.CiGate` CLI evaluates it and exits 0 (GO) / 2 (GO_WITH_CONDITIONS) / 3 (NO_GO) / 1 (unknown).
-- **Extra metric sources scaffolding** — `metrics.GenericHttpMetricsCollector` covers Prometheus, Loki, Elastic, Datadog, New Relic, Dynatrace, Azure Monitor, GCP Ops through a single generic HTTP+JSON shape, driven by the `Metric_Sources_Json` param.
+- **PPTX export** — `report.PptxExporter` produces a 5-slide executive deck via Apache POI XSLF.
+- **Notifiers** — `notify.Notifiers` ships five sinks: Slack, Teams, SMTP email (Jakarta Mail), Jira REST v3, ServiceNow Table API.
+- **CI gate** — `Fail_On_Verdict` param + standalone `com.smartjmeter.ci.CiGate` CLI (exit 0/2/3).
+- **`GenericHttpMetricsCollector`** — unified HTTP+JSON shape for 8 metric backends.
 
 ## Not yet implemented (backlog)
-- **v2.0.1 (P2)** — Wire named per-backend collectors (Azure Monitor, GCP Ops, Datadog, Dynatrace, New Relic, Prometheus, Loki, Elastic) into the enterprise report sections + dedicated health scorers + explicit rule engine coverage.
-- **v2.0.2 (P3)** — Waterfall / Sankey / dependency map SVG charts; sequence-model regression prediction + quantile-regression capacity forecast; separate Analysis Service for horizontal scale.
+- **Analysis Service split** for horizontal scale (documented in `ENTERPRISE_ARCHITECTURE.md`).
 
 ## Personas served
 - CIO / CTO / Chief Architect / Engineering Director: page-one verdict + health scores

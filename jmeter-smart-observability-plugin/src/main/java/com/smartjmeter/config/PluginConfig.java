@@ -58,6 +58,10 @@ public class PluginConfig {
     public static final String PARAM_SERVICENOW = "ServiceNow_Config";
     public static final String PARAM_METRIC_SOURCES_JSON = "Metric_Sources_Json";
 
+    // v2.0.2 - forecast + baseline history
+    public static final String PARAM_BASELINE_HISTORY_DIR = "Baseline_History_Dir";
+    public static final String PARAM_FORECAST_SLA_P95_MS = "Forecast_Sla_P95_Ms";
+
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
     public static final String PARAM_SPLUNK_SEARCH_TOKEN = "Splunk_Search_Token";
@@ -225,6 +229,8 @@ public class PluginConfig {
                 .putRaw(PARAM_JIRA, ctx.getParameter(PARAM_JIRA, ""))
                 .putRaw(PARAM_SERVICENOW, ctx.getParameter(PARAM_SERVICENOW, ""))
                 .putRaw(PARAM_METRIC_SOURCES_JSON, ctx.getParameter(PARAM_METRIC_SOURCES_JSON, "[]"))
+                .putRaw(PARAM_BASELINE_HISTORY_DIR, ctx.getParameter(PARAM_BASELINE_HISTORY_DIR, "baseline-history"))
+                .putRaw(PARAM_FORECAST_SLA_P95_MS, ctx.getParameter(PARAM_FORECAST_SLA_P95_MS, "1000"))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -307,6 +313,8 @@ public class PluginConfig {
     public String getJiraConfig() { return raw(PARAM_JIRA, ""); }
     public String getServiceNowConfig() { return raw(PARAM_SERVICENOW, ""); }
     public String getMetricSourcesJson() { return raw(PARAM_METRIC_SOURCES_JSON, "[]"); }
+    public String getBaselineHistoryDir() { return raw(PARAM_BASELINE_HISTORY_DIR, "baseline-history"); }
+    public long getForecastSlaP95Ms() { return parseLong(raw(PARAM_FORECAST_SLA_P95_MS, "1000"), 1000L); }
 
     private final java.util.Map<String, String> raw = new java.util.HashMap<>();
     public String raw(String key, String defaultVal) {

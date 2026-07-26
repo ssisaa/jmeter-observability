@@ -22,6 +22,15 @@ public class RuleEngine {
                                   Map<String, Object> correlation,
                                   Map<String, List<Map<String, Object>>> o11y,
                                   Map<String, Object> cloudwatch) {
+        return evaluate(aggregate, baselineDiff, correlation, o11y, cloudwatch, Map.of());
+    }
+
+    public List<Finding> evaluate(Map<String, Object> aggregate,
+                                  Map<String, Object> baselineDiff,
+                                  Map<String, Object> correlation,
+                                  Map<String, List<Map<String, Object>>> o11y,
+                                  Map<String, Object> cloudwatch,
+                                  Map<String, Map<String, List<Map<String, Object>>>> externalMetrics) {
         List<Finding> out = new ArrayList<>();
         Map<String, Object> overall = safeMap(aggregate.get("overall"));
 
@@ -159,6 +168,54 @@ public class RuleEngine {
             }
         }
 
+        // v2.0.2 - External metric backend rules (Prometheus/Loki/Elastic/APM/Cloud)
+        if (externalMetrics != null && !externalMetrics.isEmpty()) {
+            for (Map.Entry<String, Map<String, List<Map<String, Object>>>> be : externalMetrics.entrySet()) {
+                String backend = be.getKey();
+                for (Map.Entry<String, List<Map<String, Object>>> q : be.getValue().entrySet()) {
+                    String label = q.getKey();
+                    List<Map<String, Object>> points = q.getValue();
+                    if (points == null || points.isEmpty()) continue;
+                    double max = 0, sum = 0;
+                    for (Map<String, Object> p : points) {
+                        double v = num(p.get("value"));
+                        sum += v;
+                        if (v > max) max = v;
+                    }
+                    double avg = sum / points.size();
+                    String key = label.toLowerCase();
+
+                    // Rule: any query labelled "*cpu*" whose max >= 0.85 or 85
+                    if ((key.contains("cpu") || key.contains("saturation")) && (max >= 0.85 || max >= 85)) {
+                        out.add(finding("R-EXT-CPU-" + backend + "-" + label,
+                                backend + "/" + label + " CPU saturation observed (max " + fmt(max) + ")",
+                                "infrastructure",
+                                (max >= 0.95 || max >= 95) ? Finding.Severity.HIGH : Finding.Severity.MEDIUM,
+                                0.7,
+                                backend + "." + label + ".max=" + fmt(max)));
+                    }
+                    // Rule: any query labelled "*error*" whose avg >= 0.05 or 5(%)
+                    if (key.contains("error") && (avg >= 0.05 || avg >= 5)) {
+                        out.add(finding("R-EXT-ERR-" + backend + "-" + label,
+                                backend + "/" + label + " error rate elevated (avg " + fmt(avg) + ")",
+                                "reliability",
+                                (avg >= 0.10 || avg >= 10) ? Finding.Severity.HIGH : Finding.Severity.MEDIUM,
+                                0.75,
+                                backend + "." + label + ".avg=" + fmt(avg)));
+                    }
+                    // Rule: any query labelled "*latency*" or "*duration*" whose max >= 2000
+                    if ((key.contains("latency") || key.contains("duration")) && max >= 2000) {
+                        out.add(finding("R-EXT-LAT-" + backend + "-" + label,
+                                backend + "/" + label + " latency spike (max " + fmt(max) + " ms)",
+                                "latency",
+                                max >= 5000 ? Finding.Severity.HIGH : Finding.Severity.MEDIUM,
+                                0.7,
+                                backend + "." + label + ".max=" + fmt(max)));
+                    }
+                }
+            }
+        }
+
         out.sort((a, b) -> b.severity().ordinal() == a.severity().ordinal()
                 ? Double.compare(b.confidence(), a.confidence())
                 : Integer.compare(a.severity().ordinal(), b.severity().ordinal()));
@@ -200,5 +257,9 @@ public class RuleEngine {
         double sum = 0;
         for (Map<String, Object> p : points) sum += num(p.get("value"));
         return sum;
+    }
+
+    private static String fmt(double v) {
+        return Math.round(v * 100.0) / 100.0 + "";
     }
 }

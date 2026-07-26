@@ -39,6 +39,30 @@ public class JsonExporter {
             Object o11y,
             Map<String, Object> cloudwatch,
             Map<String, Object> insights) {
+        return envelope(schemaVersion, runId, testName, environment, application,
+                aggregate, scores, verdict, findings, baselineDiff, correlation,
+                o11y, cloudwatch, insights, null, null);
+    }
+
+    /**
+     * v2.0.2: extended envelope with external metric sources
+     * (Prometheus / Loki / Elastic / Datadog / New Relic / Dynatrace / Azure / GCP)
+     * and capacity forecast block.
+     */
+    public static Map<String, Object> envelope(
+            String schemaVersion, String runId, String testName,
+            String environment, String application,
+            Map<String, Object> aggregate,
+            Map<String, Object> scores,
+            Map<String, Object> verdict,
+            Object findings,
+            Map<String, Object> baselineDiff,
+            Map<String, Object> correlation,
+            Object o11y,
+            Map<String, Object> cloudwatch,
+            Map<String, Object> insights,
+            Object externalMetrics,
+            Map<String, Object> forecast) {
         Map<String, Object> env = new LinkedHashMap<>();
         env.put("schema_version", schemaVersion);
         env.put("run_id", runId);
@@ -55,6 +79,8 @@ public class JsonExporter {
         env.put("o11y_metrics", o11y);
         env.put("cloudwatch", cloudwatch);
         env.put("ai_insights", insights);
+        if (externalMetrics != null) env.put("external_metrics", externalMetrics);
+        if (forecast != null) env.put("capacity_forecast", forecast);
         return env;
     }
 }

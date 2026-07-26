@@ -11,7 +11,9 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/config/PluginConfig.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/correlate/CorrelationEngine.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/correlate/RuleEngine.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/forecast/CapacityForecast.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/metrics/GenericHttpMetricsCollector.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/metrics/NamedCollectorsRunner.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/model/JMeterMetric.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/notify/Notifier.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/notify/Notifiers.java
@@ -22,6 +24,7 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/PdfExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/PptxExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/ReportGenerator.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/SvgCharts.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/score/Finding.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/score/HealthScorer.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/score/HealthScores.java

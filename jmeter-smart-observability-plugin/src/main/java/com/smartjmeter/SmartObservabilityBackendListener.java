@@ -113,6 +113,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_JIRA, "");
         args.addArgument(PluginConfig.PARAM_SERVICENOW, "");
         args.addArgument(PluginConfig.PARAM_METRIC_SOURCES_JSON, "[]");
+        args.addArgument(PluginConfig.PARAM_BASELINE_HISTORY_DIR, "baseline-history");
+        args.addArgument(PluginConfig.PARAM_FORECAST_SLA_P95_MS, "1000");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -216,9 +218,13 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             Map<String, List<Map<String, Object>>> o11y = runO11yFetch(aggregate);
             Map<String, Object> cloudwatch = runCloudWatchFetch(aggregate);
             Map<String, Object> baselineDiff = runBaselineDiff(aggregate);
+            Map<String, Map<String, List<Map<String, Object>>>> externalMetrics =
+                    fetchExtraMetricSources(aggregate);
+            Map<String, Object> forecast = runCapacityForecast(aggregate);
 
             // Deterministic rules + scoring + verdict
-            List<Finding> findings = new RuleEngine().evaluate(aggregate, baselineDiff, correlation, o11y, cloudwatch);
+            List<Finding> findings = new RuleEngine().evaluate(
+                    aggregate, baselineDiff, correlation, o11y, cloudwatch, externalMetrics);
             HealthScorer scorer = new HealthScorer();
             HealthScores scores = scorer.score(
                     aggregate, findings,
@@ -277,6 +283,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                     .llmAnalysis(analysisMarkdown)
                     .llmProvider(config.isLlmEnabled() ? config.getLlmProvider() : null)
                     .llmModel(config.isLlmEnabled() ? config.getLlmModel() : null)
+                    .externalMetrics(externalMetrics)
+                    .forecast(forecast)
                     .build();
             Path resolvedReport = config.resolvePath(config.getReportOutputPath());
             new ReportGenerator().generate(reportCtx, resolvedReport.toString());
@@ -289,7 +297,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                     config.getTestName() + "-" + extractLong(aggregate, "start_ms", 0),
                     config.getTestName(), config.getEnvironment(), config.getApplication(),
                     aggregate, scores.toMap(), verdict.toMap(), findingsMap,
-                    baselineDiff, correlation, o11y, cloudwatch, insights);
+                    baselineDiff, correlation, o11y, cloudwatch, insights,
+                    externalMetrics, forecast);
             new JsonExporter().export(jsonPath, envelope);
             LOG.log(Level.INFO, "JSON report written to {0}", jsonPath);
 
@@ -316,14 +325,19 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                 if (pptx != null) LOG.log(Level.INFO, "PPTX report written to {0}", pptx);
             } catch (Exception e) { LOG.log(Level.WARNING, "PPTX export failed", e); }
 
-            // Extra metric sources (Prometheus/Loki/Elastic/Datadog/NewRelic/Dynatrace/Azure/GCP)
-            fetchExtraMetricSources(aggregate);
+            // Extra metric sources were already fetched before rules; nothing to do here.
 
             // Notifications
             fireNotifications(verdict, resolvedReport);
 
             // CI gate
             applyCiGate(verdict, config.resolvePath("."));
+
+            // Capacity forecast - append current p95 snapshot for future runs
+            try {
+                com.smartjmeter.forecast.CapacityForecast.appendSnapshot(
+                        config.resolvePath(config.getBaselineHistoryDir()), aggregate);
+            } catch (Exception e) { LOG.log(Level.WARNING, "Forecast snapshot failed", e); }
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Teardown analysis pipeline failed", e);
         }
@@ -619,38 +633,35 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
      * Datadog, New Relic, Dynatrace, Azure Monitor, GCP Ops).
      * Config JSON shape: {@code [{"backend":"prometheus","baseUrl":"...","headers":{...},"queries":{"cpu":"avg(rate(...))"},"outPath":"prom.json"}, ...]}
      * All calls are best-effort and never abort the teardown.
+     *
+     * @return backend -> queryLabel -> data points (for the RuleEngine + ReportGenerator)
      */
-    private void fetchExtraMetricSources(Map<String, Object> aggregate) {
-        String json = config.getMetricSourcesJson();
-        if (json == null || json.isBlank() || "[]".equals(json.trim())) return;
+    private Map<String, Map<String, List<Map<String, Object>>>> fetchExtraMetricSources(Map<String, Object> aggregate) {
         long start = extractLong(aggregate, "start_ms", System.currentTimeMillis() - 60_000);
         long stop  = extractLong(aggregate, "stop_ms", System.currentTimeMillis());
         if (stop <= start) stop = start + 60_000;
         try {
-            List<Map<String, Object>> sources = MAPPER.readValue(json,
-                    MAPPER.getTypeFactory().constructCollectionType(List.class, Map.class));
-            for (Map<String, Object> src : sources) {
-                String backend = String.valueOf(src.getOrDefault("backend", "")).trim();
-                String baseUrl = String.valueOf(src.getOrDefault("baseUrl", "")).trim();
-                if (backend.isEmpty() || baseUrl.isEmpty()) continue;
-                @SuppressWarnings("unchecked")
-                Map<String, String> headers = (Map<String, String>) src.getOrDefault("headers", Map.of());
-                @SuppressWarnings("unchecked")
-                Map<String, String> queries = (Map<String, String>) src.getOrDefault("queries", Map.of());
-                String outPath = String.valueOf(src.getOrDefault("outPath", backend + "-metrics.json"));
-                try {
-                    com.smartjmeter.metrics.GenericHttpMetricsCollector coll =
-                            new com.smartjmeter.metrics.GenericHttpMetricsCollector(
-                                    backend, baseUrl, headers, config.isTlsInsecure());
-                    Map<String, List<Map<String, Object>>> data = coll.query(queries, start, stop);
-                    writeJson(config.resolvePath(outPath), data);
-                    LOG.log(Level.INFO, "{0} metrics written to {1}", new Object[]{backend, outPath});
-                } catch (Exception ex) {
-                    LOG.log(Level.WARNING, "Metric source failed: " + backend, ex);
-                }
-            }
+            return com.smartjmeter.metrics.NamedCollectorsRunner.run(
+                    config.getMetricSourcesJson(), start, stop, config.isTlsInsecure(),
+                    config.resolvePath("."));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Metric_Sources_Json parse failed - skipping extra sources", e);
+            LOG.log(Level.WARNING, "External metrics collection failed", e);
+            return Map.of();
+        }
+    }
+
+    /**
+     * Capacity forecast: OLS + quantile regression over stored p95 history.
+     * Returns an empty map when history has fewer than 3 samples.
+     */
+    private Map<String, Object> runCapacityForecast(Map<String, Object> aggregate) {
+        try {
+            Path history = config.resolvePath(config.getBaselineHistoryDir());
+            return com.smartjmeter.forecast.CapacityForecast.forecast(
+                    history, config.getForecastSlaP95Ms(), aggregate).toMap();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Capacity forecast failed", e);
+            return Map.of();
         }
     }
 

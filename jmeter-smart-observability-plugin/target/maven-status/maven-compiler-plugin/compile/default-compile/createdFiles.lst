@@ -4,6 +4,7 @@ com/smartjmeter/score/Finding.class
 com/smartjmeter/baseline/BaselineDiff.class
 com/smartjmeter/baseline/BaselineStore.class
 com/smartjmeter/report/JsonExporter.class
+com/smartjmeter/forecast/CapacityForecast$Forecast.class
 com/smartjmeter/ai/PromptBuilder.class
 com/smartjmeter/notify/Notifiers$JiraNotifier.class
 com/smartjmeter/ai/InsightExtractor.class
@@ -12,6 +13,7 @@ com/smartjmeter/notify/Notifiers$TeamsNotifier.class
 com/smartjmeter/config/PluginConfig$Builder.class
 com/smartjmeter/notify/Notifier$NotificationPayload.class
 com/smartjmeter/correlate/CorrelationEngine.class
+com/smartjmeter/report/SvgCharts.class
 com/smartjmeter/util/HttpClientFactory$1.class
 com/smartjmeter/splunk/SplunkHECClient.class
 com/smartjmeter/model/JMeterMetric.class
@@ -39,7 +41,9 @@ com/smartjmeter/score/Verdict.class
 com/smartjmeter/ai/MetricAggregator.class
 com/smartjmeter/notify/Notifier.class
 com/smartjmeter/ai/LlmClient$Provider.class
+com/smartjmeter/forecast/CapacityForecast.class
 com/smartjmeter/ai/AIAnalyzer.class
+com/smartjmeter/metrics/NamedCollectorsRunner.class
 com/smartjmeter/metrics/GenericHttpMetricsCollector$Query.class
 com/smartjmeter/notify/Notifiers.class
 com/smartjmeter/correlate/RuleEngine.class

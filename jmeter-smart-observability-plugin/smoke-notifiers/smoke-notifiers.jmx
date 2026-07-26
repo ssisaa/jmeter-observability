@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Notifier Smoke Deck" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Failing traffic" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">5</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">2</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /status/500" enabled="true">
+          <stringProp name="HTTPSampler.domain">httpbin.org</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/status/500</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+      <BackendListener guiclass="BackendListenerGui" testclass="BackendListener" testname="Smart Observability Backend Listener" enabled="true">
+        <elementProp name="arguments" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+          <collectionProp name="Arguments.arguments">
+            <elementProp name="Test_Name" elementType="Argument">
+              <stringProp name="Argument.name">Test_Name</stringProp>
+              <stringProp name="Argument.value">notifier-smoke</stringProp>
+            </elementProp>
+            <elementProp name="Environment" elementType="Argument">
+              <stringProp name="Argument.name">Environment</stringProp>
+              <stringProp name="Argument.value">smoke</stringProp>
+            </elementProp>
+            <elementProp name="Application" elementType="Argument">
+              <stringProp name="Argument.name">Application</stringProp>
+              <stringProp name="Argument.value">demo</stringProp>
+            </elementProp>
+            <elementProp name="Enable_Splunk" elementType="Argument">
+              <stringProp name="Argument.name">Enable_Splunk</stringProp>
+              <stringProp name="Argument.value">false</stringProp>
+            </elementProp>
+            <elementProp name="Enable_Local_Store" elementType="Argument">
+              <stringProp name="Argument.name">Enable_Local_Store</stringProp>
+              <stringProp name="Argument.value">true</stringProp>
+            </elementProp>
+            <elementProp name="Output_Directory" elementType="Argument">
+              <stringProp name="Argument.name">Output_Directory</stringProp>
+              <stringProp name="Argument.value">${__P(out.dir,./smoke-out)}</stringProp>
+            </elementProp>
+            <elementProp name="Slack_Webhook_URL" elementType="Argument">
+              <stringProp name="Argument.name">Slack_Webhook_URL</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.slack,)}</stringProp>
+            </elementProp>
+            <elementProp name="Teams_Webhook_URL" elementType="Argument">
+              <stringProp name="Argument.name">Teams_Webhook_URL</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.teams,)}</stringProp>
+            </elementProp>
+            <elementProp name="Email_Smtp" elementType="Argument">
+              <stringProp name="Argument.name">Email_Smtp</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.email.smtp,)}</stringProp>
+            </elementProp>
+            <elementProp name="Email_From_To" elementType="Argument">
+              <stringProp name="Argument.name">Email_From_To</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.email.fromto,)}</stringProp>
+            </elementProp>
+            <elementProp name="Jira_Config" elementType="Argument">
+              <stringProp name="Argument.name">Jira_Config</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.jira,)}</stringProp>
+            </elementProp>
+            <elementProp name="ServiceNow_Config" elementType="Argument">
+              <stringProp name="Argument.name">ServiceNow_Config</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.servicenow,)}</stringProp>
+            </elementProp>
+            <elementProp name="Fail_On_Verdict" elementType="Argument">
+              <stringProp name="Argument.name">Fail_On_Verdict</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.gate,NO_GO)}</stringProp>
+            </elementProp>
+            <elementProp name="Report_Output_Path" elementType="Argument">
+              <stringProp name="Argument.name">Report_Output_Path</stringProp>
+              <stringProp name="Argument.value">Performance_Report.html</stringProp>
+            </elementProp>
+          </collectionProp>
+        </elementProp>
+        <stringProp name="classname">com.smartjmeter.SmartObservabilityBackendListener</stringProp>
+      </BackendListener>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
