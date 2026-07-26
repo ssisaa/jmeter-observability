@@ -55,7 +55,7 @@ const Home = () => {
         <div className="tag">Smart Observability AI</div>
         <h1>JMeter Smart Observability Plugin</h1>
         <p className="subtitle">
-          Enterprise Performance Test Reporting Framework &middot; v2.0.6
+          Enterprise Performance Test Reporting Framework &middot; v2.0.7
         </p>
       </header>
 
@@ -144,27 +144,32 @@ const Home = () => {
           )}
         </Section>
 
-        <Section title="What's new in v2.0.6" testId="section-changelog">
+        <Section title="What's new in v2.0.7" testId="section-changelog">
           <ul className="changelog">
             <li>
-              <b>Splunk O11y fixed</b> &mdash; batch mode via{" "}
-              <code>POST /v2/timeserieswindow</code>; removed the
-              SignalFlow fallback that returned 406 on some realms.
+              <b>Splunk O11y endpoint fixed (real fix)</b> &mdash; now uses{" "}
+              <code>GET /v1/timeserieswindow</code>, the only bounded
+              batch endpoint. The previous <code>/v2/timeserieswindow</code>{" "}
+              does not exist (404) and SignalFlow was ruled out because it
+              streams indefinitely, unsuitable for test-window collection.
             </li>
             <li>
-              <b>Bigger, focused charts</b> &mdash; latency percentiles,
-              distribution and throughput-per-transaction bars removed;
-              remaining charts are full-width and clearly readable.
+              <b>Bottleneck logs during teardown</b> &mdash; every rule-engine
+              finding is now logged with severity, category, confidence and
+              evidence, so operators see exactly what tripped without opening
+              the report.
             </li>
             <li>
-              <b>Observability panels included</b> &mdash; Splunk
-              O11y and AWS CloudWatch metrics are now charted side by
-              side with the test-run timeframe.
+              <b>Metric spec is friendlier</b> &mdash; bare names
+              (<code>cpu.utilization</code>) are auto-wrapped as{" "}
+              <code>sf_metric:"..."</code>; SignalFlow programs are
+              downgraded to the metric name; raw filter expressions
+              (<code>sf_metric:... AND host:...</code>) are passed through.
             </li>
             <li>
-              <b>Confluence-ready Markdown export</b> &mdash;
-              <code>Performance_Report.md</code> with tables and
-              headings you can paste straight into a wiki page.
+              <b>Resolution auto-snap</b> &mdash; requested resolution is
+              rounded UP to the nearest valid bucket
+              (1s / 1m / 5m / 1h) so the API never rejects the call.
             </li>
           </ul>
         </Section>

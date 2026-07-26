@@ -13,6 +13,7 @@ com/smartjmeter/notify/Notifiers$TeamsNotifier.class
 com/smartjmeter/config/PluginConfig$Builder.class
 com/smartjmeter/notify/Notifier$NotificationPayload.class
 com/smartjmeter/correlate/CorrelationEngine.class
+com/smartjmeter/SmartObservabilityBackendListener$1.class
 com/smartjmeter/report/SvgCharts.class
 com/smartjmeter/util/HttpClientFactory$1.class
 com/smartjmeter/splunk/SplunkHECClient.class

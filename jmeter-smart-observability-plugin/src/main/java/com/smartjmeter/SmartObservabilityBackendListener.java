@@ -228,6 +228,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             // Deterministic rules + scoring + verdict
             List<Finding> findings = new RuleEngine().evaluate(
                     aggregate, baselineDiff, correlation, o11y, cloudwatch, externalMetrics);
+            logBottlenecks(findings);
             HealthScorer scorer = new HealthScorer();
             HealthScores scores = scorer.score(
                     aggregate, findings,
@@ -829,5 +830,48 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
 
     private static int parseIntSafe(String s, int defaultVal) {
         try { return Integer.parseInt(s.trim()); } catch (Exception e) { return defaultVal; }
+    }
+
+    /**
+     * v2.0.7 - Log each detected bottleneck (finding) at WARNING/INFO
+     * with severity, category, confidence and evidence so operators
+     * can see exactly what tripped during the run. The same list is
+     * still rendered into the HTML/Markdown report.
+     */
+    private static void logBottlenecks(List<Finding> findings) {
+        if (findings == null || findings.isEmpty()) {
+            LOG.info("[Bottleneck] No bottlenecks detected by rule engine.");
+            return;
+        }
+        int critical = 0, high = 0, medium = 0, low = 0, info = 0;
+        for (Finding f : findings) {
+            switch (f.severity()) {
+                case CRITICAL -> critical++;
+                case HIGH -> high++;
+                case MEDIUM -> medium++;
+                case LOW -> low++;
+                case INFO -> info++;
+            }
+        }
+        LOG.log(Level.WARNING,
+                "[Bottleneck] {0} finding(s): {1} CRITICAL, {2} HIGH, {3} MEDIUM, {4} LOW, {5} INFO",
+                new Object[]{findings.size(), critical, high, medium, low, info});
+        for (Finding f : findings) {
+            Level lvl = switch (f.severity()) {
+                case CRITICAL, HIGH -> Level.WARNING;
+                case MEDIUM, LOW -> Level.INFO;
+                case INFO -> Level.FINE;
+            };
+            LOG.log(lvl,
+                    "[Bottleneck] {0} | {1} | {2} | confidence={3} | {4} | evidence: {5}",
+                    new Object[]{
+                            f.severity().name(),
+                            f.category(),
+                            f.ruleId(),
+                            String.format("%.2f", f.confidence()),
+                            f.title(),
+                            f.evidence()
+                    });
+        }
     }
 }

@@ -41,18 +41,26 @@ Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
 - Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **87/87 pass** (`mvn clean test`) as of v2.0.6.
-- **11/11 backend pytest pass** (`/app/backend/tests/test_downloads.py`) covering plugin/demo/docs/docker downloads including Markdown MIME.
+- **92/92 pass** (`mvn clean test`) as of v2.0.7.
+- **14/14 O11y client tests pass** (`SplunkO11yMetricsClientTest` + `SplunkO11yMetricsClientPostTest`).
+- **11/11 backend pytest pass** (`/app/backend/tests/test_downloads.py`).
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-2.0.6.jar` (~18 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
+- `target/jmeter-smart-observability-plugin-2.0.7.jar` (~18 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
 - **Downloadable via preview URL**: `/api/downloads/plugin.jar`, `/api/downloads/demo/*` (HTML/JSON/CSV/**MD**), `/api/downloads/smoke/*`, `/api/downloads/docs/*`, `/api/downloads/docker/*`, `/api/downloads/templates/*`.
-- **Frontend home page** now shows 6 sections and reports v2.0.6.
+- **Frontend home page** now shows 6 sections and reports v2.0.7.
 - `docs/PARAMETERS.md` (~19 KB) - every Backend Listener parameter documented with sample values.
 - `docker/` bundle + `templates/smart-observability-default.jmx` JMeter template.
 - `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
 
-## v2.0.6 (this release)
+## v2.0.7 (this release)
+Feb 2026:
+- **Splunk O11y endpoint FIXED (real fix)** - switched to `GET /v1/timeserieswindow`, the only bounded batch endpoint. `/v2/timeserieswindow` does not exist (returned 404); SignalFlow was ruled out because it streams indefinitely, unsuitable for JMeter start-to-end collection. See `SplunkO11yMetricsClient.java`.
+- **Bottleneck logs during teardown** - every rule-engine `Finding` is logged with severity, category, rule id, confidence, title and evidence (WARN for CRITICAL/HIGH, INFO for MEDIUM/LOW). Operators see what tripped without opening the report.
+- **Friendlier metric spec** - bare metric names (`cpu.utilization`) are auto-wrapped as `sf_metric:"..."`; SignalFlow programs (`data('foo').publish()`) are downgraded to the metric name (with a warning); raw filter expressions pass through unchanged.
+- **Resolution auto-snap** - requested resolution is rounded UP to the nearest valid `/v1/timeserieswindow` bucket (1s / 1m / 5m / 1h) so the API never rejects it.
+
+## v2.0.6 (previous release)
 Feb 2026:
 - **Splunk O11y bugfix** - removed the SignalFlow fallback (returned 406 on some realms). Batch-mode `POST /v2/timeserieswindow` is the sole path.
 - **Report chart cleanup** - removed Latency percentiles, Latency distribution and Throughput-per-transaction bars. Remaining charts get full row width + taller 260x1400 SVG canvas.

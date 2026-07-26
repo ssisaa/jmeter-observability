@@ -10,16 +10,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class SplunkO11yMetricsClientTest {
 
     @Test
-    void wrapsBareMetricNameInSignalFlow() {
+    void wrapsBareMetricNameInSfMetricQuery() {
         assertEquals(
-                "data('cpu.utilization').publish()",
-                SplunkO11yMetricsClient.toProgramText("cpu.utilization"));
+                "sf_metric:\"cpu.utilization\"",
+                SplunkO11yMetricsClient.toQuery("cpu.utilization"));
     }
 
     @Test
-    void leavesFullProgramUntouched() {
-        String p = "data('cpu').mean().publish()";
-        assertEquals(p, SplunkO11yMetricsClient.toProgramText(p));
+    void downgradesSignalFlowProgramToSfMetric() {
+        assertEquals("sf_metric:\"cpu\"",
+                SplunkO11yMetricsClient.toQuery("data('cpu').mean().publish()"));
     }
 
     @Test

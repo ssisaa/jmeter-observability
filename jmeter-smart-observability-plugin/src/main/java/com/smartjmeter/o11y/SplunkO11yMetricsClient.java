@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartjmeter.util.HttpClientFactory;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,20 +19,30 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Client for Splunk Observability Cloud (formerly SignalFx) metrics.
  *
- * <p>Uses the {@code GET /v2/timeserieswindow} endpoint which returns raw
- * data points for a program text (a metric name is the simplest program
- * text, e.g. {@code data('cpu.utilization').publish()}). For simplicity
- * this client accepts either a bare metric name or a full SignalFlow
- * program string; bare names are wrapped in {@code data('...').publish()}.
- * </p>
+ * <p>Uses the {@code GET /v1/timeserieswindow} endpoint - the only
+ * bounded, non-streaming batch endpoint for retrieving raw metric points
+ * in a fixed time window. This is the correct choice for JMeter runs
+ * where we want to fetch metrics between test start and test end and
+ * then close out; SignalFlow streams indefinitely and is unsuitable
+ * here.</p>
  *
- * <p>Auth: {@code X-SF-TOKEN: <token>}.</p>
+ * <p>Query params:</p>
+ * <ul>
+ *   <li>{@code query} - Elasticsearch-style filter e.g.
+ *       {@code sf_metric:"cpu.utilization"}</li>
+ *   <li>{@code startMs}, {@code endMs} - Unix millis window</li>
+ *   <li>{@code resolution} - one of 1000, 60000, 300000, 3600000</li>
+ * </ul>
+ *
+ * <p>Auth: {@code X-SF-Token: <token>}.</p>
  *
  * <p>All errors are logged and return an empty result so an outage cannot
  * break the JMeter test run.</p>
@@ -40,10 +52,16 @@ public class SplunkO11yMetricsClient {
     private static final Logger LOG = Logger.getLogger(SplunkO11yMetricsClient.class.getName());
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /** Valid resolutions accepted by /v1/timeserieswindow. */
+    private static final long[] VALID_RESOLUTIONS_MS = {1_000L, 60_000L, 300_000L, 3_600_000L};
+
+    /** data('metric.name')... -> metric.name */
+    private static final Pattern DATA_METRIC = Pattern.compile("data\\(\\s*['\"]([^'\"]+)['\"]");
+
     private final String baseUrl;
     private final String token;
     private final HttpClient httpClient;
-    private long resolutionMs = 10_000;
+    private long resolutionMs = 60_000L;
 
     public SplunkO11yMetricsClient(String baseUrl, String token) {
         this(baseUrl, token, false);
@@ -56,18 +74,18 @@ public class SplunkO11yMetricsClient {
     }
 
     public SplunkO11yMetricsClient withResolutionMs(long ms) {
-        this.resolutionMs = ms;
+        this.resolutionMs = snapResolution(ms);
         return this;
     }
 
     /**
-     * Fetch each configured metric over {@code [startMs, stopMs]} and
+     * Fetch each configured metric over {@code [startMs, endMs]} and
      * return a map keyed by metric name, value = list of
-     * {@code {"ts": long, "value": Number}} points.
+     * {@code {"tsid": String, "ts": long, "value": Number}} points.
      */
     public Map<String, List<Map<String, Object>>> fetchAll(List<String> metrics,
                                                            long startMs,
-                                                           long stopMs) {
+                                                           long endMs) {
         Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
         if (metrics == null || metrics.isEmpty()) return out;
         if (baseUrl.isEmpty() || token == null || token.isBlank()) {
@@ -76,44 +94,46 @@ public class SplunkO11yMetricsClient {
             return out;
         }
         for (String metric : metrics) {
-            out.put(metric, fetch(metric, startMs, stopMs));
+            out.put(metric, fetch(metric, startMs, endMs));
         }
         return out;
     }
 
-    public List<Map<String, Object>> fetch(String metric, long startMs, long stopMs) {
+    public List<Map<String, Object>> fetch(String metric, long startMs, long endMs) {
         try {
-            String program = toProgramText(metric);
-            // v2.0.6: batch time-series is fetched from POST /v2/timeserieswindow.
-            // (SignalFlow streaming is deliberately NOT used - it's for live
-            //  dashboards, requires job/stream orchestration and returns 406
-            //  on realms that only serve the batch endpoint.)
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("program", program);
-            body.put("startMs", startMs);
-            body.put("stopMs", stopMs);
-            body.put("resolution", resolutionMs);
-            String url = baseUrl + "/v2/timeserieswindow";
+            String queryValue = toQuery(metric);
+            String url = baseUrl + "/v1/timeserieswindow"
+                    + "?query=" + URLEncoder.encode(queryValue, StandardCharsets.UTF_8)
+                    + "&startMs=" + startMs
+                    + "&endMs=" + endMs
+                    + "&resolution=" + resolutionMs;
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(Duration.ofSeconds(15))
-                    .header("X-SF-TOKEN", token)
-                    .header("Content-Type", "application/json")
+                    .header("X-SF-Token", token)
                     .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                    .GET()
                     .build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 404) {
                 LOG.log(Level.WARNING,
-                        "O11y /v2/timeserieswindow returned 404 - is O11y_URL correct? "
-                                + "Expected format: https://api.<realm>.signalfx.com (found: {0}). "
-                                + "Metric skipped: {1}",
+                        "O11y /v1/timeserieswindow returned 404 - check O11y_URL. "
+                                + "Expected: https://api.<realm>.signalfx.com "
+                                + "(e.g. api.us1, api.us0, api.eu0, api.sg0, api.jp0). "
+                                + "Base URL used: {0}. Metric skipped: {1}",
                         new Object[]{baseUrl, metric});
                 return Collections.emptyList();
             }
+            if (resp.statusCode() == 401 || resp.statusCode() == 403) {
+                LOG.log(Level.WARNING,
+                        "O11y auth failed ({0}) - check O11y_TOKEN (X-SF-Token). "
+                                + "Metric skipped: {1}",
+                        new Object[]{resp.statusCode(), metric});
+                return Collections.emptyList();
+            }
             if (resp.statusCode() >= 300) {
-                LOG.log(Level.WARNING, "O11y timeserieswindow {0}: {1}",
-                        new Object[]{resp.statusCode(), snippet(resp.body())});
+                LOG.log(Level.WARNING, "O11y timeserieswindow {0} for {1}: {2}",
+                        new Object[]{resp.statusCode(), metric, snippet(resp.body())});
                 return Collections.emptyList();
             }
             return parseTimeSeriesWindow(resp.body());
@@ -129,18 +149,55 @@ public class SplunkO11yMetricsClient {
     }
 
     /**
-     * Wrap a bare metric name in a minimal SignalFlow program. Full
-     * programs (containing {@code data(} or {@code .publish()}) are used
-     * as-is.
+     * Convert a user-supplied metric spec into an Elasticsearch-style
+     * query understood by {@code /v1/timeserieswindow}.
+     *
+     * <ul>
+     *   <li>{@code cpu.utilization} -> {@code sf_metric:"cpu.utilization"}</li>
+     *   <li>{@code sf_metric:"foo" AND host:web1} -> used as-is</li>
+     *   <li>{@code data('foo').publish()} (SignalFlow) -> {@code sf_metric:"foo"}
+     *       (the SignalFlow program is downgraded; /v1 does not run programs)</li>
+     * </ul>
      */
-    public static String toProgramText(String metric) {
+    public static String toQuery(String metric) {
+        if (metric == null) return "";
         String m = metric.trim();
-        if (m.contains("data(") || m.contains(".publish(")) return m;
-        return "data('" + m + "').publish()";
+        if (m.isEmpty()) return m;
+        if (m.contains("data(") || m.contains(".publish(")) {
+            Matcher mat = DATA_METRIC.matcher(m);
+            if (mat.find()) {
+                LOG.log(Level.INFO,
+                        "SignalFlow program supplied for O11y metric; using extracted name "
+                                + "\"{0}\" against /v1/timeserieswindow (server-side "
+                                + "aggregation is not applied).", mat.group(1));
+                return "sf_metric:\"" + mat.group(1) + "\"";
+            }
+            LOG.log(Level.WARNING,
+                    "SignalFlow program \"{0}\" cannot be executed by /v1/timeserieswindow "
+                            + "and no metric name could be extracted.", m);
+            return m;
+        }
+        if (m.contains(":") || m.contains(" AND ") || m.contains(" OR ")) {
+            return m;
+        }
+        return "sf_metric:\"" + m + "\"";
     }
 
     /**
-     * Parse a {@code /v2/timeserieswindow} response into flat point lists.
+     * Snap arbitrary resolution to the smallest valid
+     * /v1/timeserieswindow bucket that is &gt;= the requested value, so we
+     * never return finer-grained (and more expensive) data than asked
+     * for. Values above 1h are clamped to 1h.
+     */
+    static long snapResolution(long ms) {
+        for (long candidate : VALID_RESOLUTIONS_MS) {
+            if (candidate >= ms) return candidate;
+        }
+        return VALID_RESOLUTIONS_MS[VALID_RESOLUTIONS_MS.length - 1];
+    }
+
+    /**
+     * Parse a {@code /v1/timeserieswindow} response into flat point lists.
      * The response shape is:
      * <pre>
      *   { "data": { "&lt;tsid&gt;": [ [tsMs, value], ... ] } }
