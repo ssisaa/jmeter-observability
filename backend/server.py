@@ -22,6 +22,7 @@ PLUGIN_DEMO_DIR = PLUGIN_ROOT / 'docs' / 'demo'
 PLUGIN_SMOKE_DIR = PLUGIN_ROOT / 'smoke-notifiers'
 PLUGIN_DOCS_DIR = PLUGIN_ROOT / 'docs'
 PLUGIN_DOCKER_DIR = PLUGIN_ROOT / 'docker'
+PLUGIN_TEMPLATES_DIR = PLUGIN_ROOT / 'templates'
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -134,6 +135,16 @@ async def plugin_info():
                     "size_bytes": p.stat().st_size,
                     "url": f"/api/downloads/docker/{p.name}",
                 })
+    # JMeter template preset
+    templates = []
+    if PLUGIN_TEMPLATES_DIR.is_dir():
+        for p in sorted(PLUGIN_TEMPLATES_DIR.iterdir()):
+            if p.is_file() and not p.name.startswith('.'):
+                templates.append({
+                    "name": p.name,
+                    "size_bytes": p.stat().st_size,
+                    "url": f"/api/downloads/templates/{p.name}",
+                })
     return {
         "jar": None if jar is None else {
             "name": jar.name,
@@ -145,6 +156,7 @@ async def plugin_info():
         "smoke": smoke,
         "docs": docs,
         "docker": docker,
+        "templates": templates,
     }
 
 

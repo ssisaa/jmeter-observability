@@ -110,6 +110,26 @@ public final class SvgCharts {
         return lineChart(xs, ys, "Transactions per second (TPS)", "#4f46e5", true, "tps");
     }
 
+    /**
+     * v2.0.5 - virtual users / active-threads line. Draws the max of the
+     * {@code allThreads} counter observed in each time-bucket.
+     */
+    public static String vusersLine(Map<String, Object> agg) {
+        List<List<Number>> b = buckets(agg);
+        if (b.isEmpty()) return "";
+        // buckets = [ts, count, errors, avg_rt, threads]
+        if (b.get(0).size() < 5) return "";
+        double sum = 0;
+        double[] xs = new double[b.size()], ys = new double[b.size()];
+        for (int i = 0; i < b.size(); i++) {
+            xs[i] = i;
+            ys[i] = b.get(i).get(4).doubleValue();
+            sum += ys[i];
+        }
+        if (sum <= 0) return ""; // no thread data - hide the panel
+        return lineChart(xs, ys, "Active virtual users (threads)", "#14b8a6", true, "vu");
+    }
+
     public static String hpsLine(Map<String, Object> agg) {
         List<List<Number>> b = buckets(agg);
         if (b.isEmpty()) return "";
@@ -150,7 +170,7 @@ public final class SvgCharts {
      * Generic line/area chart used by TPS/HPS/RTS/error-rate.
      */
     private static String lineChart(double[] xs, double[] ys, String title, String color, boolean fill, String cls) {
-        int width = 900, height = 240, padL = 60, padR = 20, padT = 40, padB = 40;
+        int width = 900, height = 180, padL = 60, padR = 20, padT = 34, padB = 32;
         double yMax = 0;
         for (double v : ys) if (v > yMax) yMax = v;
         if (yMax <= 0) yMax = 1;
@@ -226,7 +246,7 @@ public final class SvgCharts {
         Arrays.sort(idx, (a, b) -> Long.compare(vals.get(b)[0], vals.get(a)[0]));
         int show = Math.min(12, names.size());
 
-        int rowH = 30, left = 220, width = 900, top = 40, right = 60;
+        int rowH = 24, left = 220, width = 900, top = 34, right = 60;
         int height = top + show * rowH + 20;
         StringBuilder sb = new StringBuilder(2048);
         sb.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ").append(width).append(' ').append(height)
@@ -282,9 +302,9 @@ public final class SvgCharts {
         Arrays.sort(idx, (a, b) -> Double.compare(vals.get(b)[1], vals.get(a)[1]));
         int show = Math.min(8, names.size());
 
-        int groupW = 90, gap = 20, left = 60, top = 50, bot = 60;
+        int groupW = 90, gap = 16, left = 60, top = 40, bot = 44;
         int width = left + show * (groupW + gap) + 20;
-        int height = 300;
+        int height = 220;
         StringBuilder sb = new StringBuilder(2048);
         sb.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ").append(width).append(' ').append(height)
           .append("\" role=\"img\" aria-label=\"Latency percentiles per transaction\">")
@@ -353,7 +373,7 @@ public final class SvgCharts {
         long sum = 0; for (long v : counts) sum += v;
         counts[counts.length - 1] += total - sum;
 
-        int width = 900, height = 240, left = 60, right = 20, top = 40, bot = 50;
+        int width = 900, height = 180, left = 60, right = 20, top = 34, bot = 42;
         int plotW = width - left - right, plotH = height - top - bot;
         long maxV = 1;
         for (long v : counts) if (v > maxV) maxV = v;
@@ -406,8 +426,8 @@ public final class SvgCharts {
         if (cnt == 0) return "";
         double avg = sum / cnt;
 
-        int width = 900, height = 260, left = 60, top = 50;
-        int plotH = 150;
+        int width = 900, height = 200, left = 60, top = 40;
+        int plotH = 110;
         double[] bars = {currentP95, last, avg};
         String[] labels = {"Current run", "Previous baseline", "Historic avg (" + cnt + ")"};
         String[] colors = {"#4f46e5", "#0ea5e9", "#94a3b8"};
@@ -508,6 +528,22 @@ public final class SvgCharts {
     public static boolean hasAny(Map<String, Object> aggregate) {
         Map<String, Object> overall = extractMap(aggregate, "overall");
         return !overall.isEmpty();
+    }
+
+    /**
+     * v2.0.5 - render a single Splunk O11y timeserieswindow result as a
+     * line chart. Points shape: {@code {ts:long, value:Number}}.
+     */
+    public static String o11ySeries(String metric, List<Map<String, Object>> points) {
+        if (points == null || points.isEmpty()) return "";
+        double[] xs = new double[points.size()], ys = new double[points.size()];
+        int filled = 0;
+        for (int i = 0; i < points.size(); i++) {
+            Object v = points.get(i).get("value");
+            if (v instanceof Number n) { xs[i] = i; ys[i] = n.doubleValue(); filled++; }
+        }
+        if (filled == 0) return "";
+        return lineChart(xs, ys, metric, "#0ea5e9", true, "o11y");
     }
     @SuppressWarnings("unchecked")
     private static Map<String, Object> extractMap(Map<String, Object> src, String key) {

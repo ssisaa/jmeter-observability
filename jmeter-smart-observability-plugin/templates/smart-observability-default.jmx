@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  SMART OBSERVABILITY DEFAULT - Backend Listener preset for JMeter 5.6.3+
+  ============================================================================
+  Drop this file into $JMETER_HOME/bin/templates/ (create the directory if
+  missing) and it will appear under File -> Templates -> Load...
+
+  The Backend Listener element inside already has every parameter row that
+  the plugin understands. Replace only the values you need - all optional
+  sinks (Splunk, notifiers, LLM etc.) skip silently when blank.
+
+  Every parameter's meaning + sample value is documented in
+  docs/PARAMETERS.md at the repo root.
+  ============================================================================
+-->
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Smart Observability Default" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <BackendListener guiclass="BackendListenerGui" testclass="BackendListener" testname="Smart Observability Backend Listener" enabled="true">
+        <elementProp name="arguments" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+          <collectionProp name="Arguments.arguments">
+
+            <!-- ============== 1. Core - identity + report output ============== -->
+            <elementProp name="Test_Name" elementType="Argument"><stringProp name="Argument.name">Test_Name</stringProp><stringProp name="Argument.value">checkout-load-${__time(yyyy-MM-dd_HHmm,)}</stringProp><stringProp name="Argument.metadata">Free-form. Any name that identifies this run in dashboards.</stringProp></elementProp>
+            <elementProp name="Environment" elementType="Argument"><stringProp name="Argument.name">Environment</stringProp><stringProp name="Argument.value">staging</stringProp><stringProp name="Argument.metadata">dev / qa / staging / preprod / prod</stringProp></elementProp>
+            <elementProp name="Application" elementType="Argument"><stringProp name="Argument.name">Application</stringProp><stringProp name="Argument.value">smart-shop-api</stringProp><stringProp name="Argument.metadata">Application under test - match the APM service name.</stringProp></elementProp>
+            <elementProp name="Apdex_Target_Ms" elementType="Argument"><stringProp name="Argument.name">Apdex_Target_Ms</stringProp><stringProp name="Argument.value">500</stringProp><stringProp name="Argument.metadata">Product SLA in ms.</stringProp></elementProp>
+            <elementProp name="Output_Directory" elementType="Argument"><stringProp name="Argument.name">Output_Directory</stringProp><stringProp name="Argument.value">./perf-reports/${__time(yyyy-MM-dd_HHmm,)}</stringProp><stringProp name="Argument.metadata">Where the HTML/JSON/CSV report lands.</stringProp></elementProp>
+            <elementProp name="Report_Output_Path" elementType="Argument"><stringProp name="Argument.name">Report_Output_Path</stringProp><stringProp name="Argument.value">Performance_Report.html</stringProp></elementProp>
+            <elementProp name="Json_Report_Path" elementType="Argument"><stringProp name="Argument.name">Json_Report_Path</stringProp><stringProp name="Argument.value">Performance_Report.json</stringProp></elementProp>
+            <elementProp name="Csv_Report_Path" elementType="Argument"><stringProp name="Argument.name">Csv_Report_Path</stringProp><stringProp name="Argument.value">Performance_Report.csv</stringProp></elementProp>
+
+            <!-- ============== 2. Local storage ============== -->
+            <elementProp name="Enable_Local_Store" elementType="Argument"><stringProp name="Argument.name">Enable_Local_Store</stringProp><stringProp name="Argument.value">true</stringProp></elementProp>
+            <elementProp name="Local_Store_Path" elementType="Argument"><stringProp name="Argument.name">Local_Store_Path</stringProp><stringProp name="Argument.value">local-store.json</stringProp></elementProp>
+
+            <!-- ============== 3. Splunk HEC ============== -->
+            <elementProp name="Enable_Splunk" elementType="Argument"><stringProp name="Argument.name">Enable_Splunk</stringProp><stringProp name="Argument.value">false</stringProp><stringProp name="Argument.metadata">Set true to forward samples to Splunk HEC.</stringProp></elementProp>
+            <elementProp name="Splunk_URL" elementType="Argument"><stringProp name="Argument.name">Splunk_URL</stringProp><stringProp name="Argument.value">https://splunk.company.com:8088</stringProp></elementProp>
+            <elementProp name="Splunk_Token" elementType="Argument"><stringProp name="Argument.name">Splunk_Token</stringProp><stringProp name="Argument.value">${__P(splunk.token,)}</stringProp><stringProp name="Argument.metadata">Splunk HEC token - pass via -Jsplunk.token=... on CLI.</stringProp></elementProp>
+            <elementProp name="Splunk_Index" elementType="Argument"><stringProp name="Argument.name">Splunk_Index</stringProp><stringProp name="Argument.value">perf</stringProp></elementProp>
+            <elementProp name="Splunk_Sourcetype" elementType="Argument"><stringProp name="Argument.name">Splunk_Sourcetype</stringProp><stringProp name="Argument.value">jmeter:sample</stringProp></elementProp>
+            <elementProp name="Splunk_Batch_Size" elementType="Argument"><stringProp name="Argument.name">Splunk_Batch_Size</stringProp><stringProp name="Argument.value">500</stringProp></elementProp>
+            <elementProp name="Splunk_Flush_Ms" elementType="Argument"><stringProp name="Argument.name">Splunk_Flush_Ms</stringProp><stringProp name="Argument.value">2000</stringProp></elementProp>
+
+            <!-- ============== 4. Splunk Search / correlation ============== -->
+            <elementProp name="Splunk_Search_URL" elementType="Argument"><stringProp name="Argument.name">Splunk_Search_URL</stringProp><stringProp name="Argument.value">https://splunk.company.com:8089</stringProp></elementProp>
+            <elementProp name="Splunk_Search_Token" elementType="Argument"><stringProp name="Argument.name">Splunk_Search_Token</stringProp><stringProp name="Argument.value">${__P(splunk.search.token,)}</stringProp></elementProp>
+            <elementProp name="Splunk_Log_Index" elementType="Argument"><stringProp name="Argument.name">Splunk_Log_Index</stringProp><stringProp name="Argument.value">app</stringProp></elementProp>
+            <elementProp name="Enable_Correlation" elementType="Argument"><stringProp name="Argument.name">Enable_Correlation</stringProp><stringProp name="Argument.value">false</stringProp></elementProp>
+            <elementProp name="Correlation_Window_Seconds" elementType="Argument"><stringProp name="Argument.name">Correlation_Window_Seconds</stringProp><stringProp name="Argument.value">30</stringProp></elementProp>
+            <elementProp name="Correlation_Output_Path" elementType="Argument"><stringProp name="Argument.name">Correlation_Output_Path</stringProp><stringProp name="Argument.value">log-correlation.json</stringProp></elementProp>
+
+            <!-- ============== 5. Splunk O11y (SignalFx) ============== -->
+            <elementProp name="O11y_URL" elementType="Argument"><stringProp name="Argument.name">O11y_URL</stringProp><stringProp name="Argument.value">https://api.us1.signalfx.com</stringProp></elementProp>
+            <elementProp name="O11y_Token" elementType="Argument"><stringProp name="Argument.name">O11y_Token</stringProp><stringProp name="Argument.value">${__P(o11y.token,)}</stringProp></elementProp>
+            <elementProp name="O11y_Metrics" elementType="Argument"><stringProp name="Argument.name">O11y_Metrics</stringProp><stringProp name="Argument.value">cpu.utilization,memory.utilization,jvm.gc.collection.count,jvm.threads.count</stringProp><stringProp name="Argument.metadata">Comma-separated bare metric names OR full SignalFlow programs.</stringProp></elementProp>
+
+            <!-- ============== 6. AWS CloudWatch ============== -->
+            <elementProp name="Enable_Cloudwatch" elementType="Argument"><stringProp name="Argument.name">Enable_Cloudwatch</stringProp><stringProp name="Argument.value">false</stringProp></elementProp>
+            <elementProp name="Cloudwatch_Region" elementType="Argument"><stringProp name="Argument.name">Cloudwatch_Region</stringProp><stringProp name="Argument.value">us-east-1</stringProp></elementProp>
+            <elementProp name="Cloudwatch_Namespace" elementType="Argument"><stringProp name="Argument.name">Cloudwatch_Namespace</stringProp><stringProp name="Argument.value">AWS/ApplicationELB</stringProp></elementProp>
+            <elementProp name="Cloudwatch_Metrics_Json" elementType="Argument"><stringProp name="Argument.name">Cloudwatch_Metrics_Json</stringProp><stringProp name="Argument.value">[]</stringProp></elementProp>
+            <elementProp name="Cloudwatch_Alarms_Csv" elementType="Argument"><stringProp name="Argument.name">Cloudwatch_Alarms_Csv</stringProp><stringProp name="Argument.value"></stringProp></elementProp>
+            <elementProp name="Cloudwatch_Log_Group" elementType="Argument"><stringProp name="Argument.name">Cloudwatch_Log_Group</stringProp><stringProp name="Argument.value"></stringProp></elementProp>
+            <elementProp name="Cloudwatch_Log_Filter_Pattern" elementType="Argument"><stringProp name="Argument.name">Cloudwatch_Log_Filter_Pattern</stringProp><stringProp name="Argument.value">?ERROR ?Exception</stringProp></elementProp>
+
+            <!-- ============== 7. LLM analysis ============== -->
+            <elementProp name="Enable_Llm" elementType="Argument"><stringProp name="Argument.name">Enable_Llm</stringProp><stringProp name="Argument.value">false</stringProp></elementProp>
+            <elementProp name="Llm_Provider" elementType="Argument"><stringProp name="Argument.name">Llm_Provider</stringProp><stringProp name="Argument.value">openai</stringProp><stringProp name="Argument.metadata">openai | anthropic | gemini | grok | groq</stringProp></elementProp>
+            <elementProp name="Llm_Model" elementType="Argument"><stringProp name="Argument.name">Llm_Model</stringProp><stringProp name="Argument.value"></stringProp></elementProp>
+            <elementProp name="Llm_Api_Key" elementType="Argument"><stringProp name="Argument.name">Llm_Api_Key</stringProp><stringProp name="Argument.value"></stringProp><stringProp name="Argument.metadata">Prefer Llm_Api_Key_Env - never paste a key here.</stringProp></elementProp>
+            <elementProp name="Llm_Api_Key_Env" elementType="Argument"><stringProp name="Argument.name">Llm_Api_Key_Env</stringProp><stringProp name="Argument.value">OPENAI_API_KEY</stringProp></elementProp>
+            <elementProp name="Llm_Base_Url" elementType="Argument"><stringProp name="Argument.name">Llm_Base_Url</stringProp><stringProp name="Argument.value"></stringProp></elementProp>
+
+            <!-- ============== 8. Notifiers ============== -->
+            <elementProp name="Slack_Webhook_URL" elementType="Argument"><stringProp name="Argument.name">Slack_Webhook_URL</stringProp><stringProp name="Argument.value">${__P(plugin.slack,)}</stringProp></elementProp>
+            <elementProp name="Teams_Webhook_URL" elementType="Argument"><stringProp name="Argument.name">Teams_Webhook_URL</stringProp><stringProp name="Argument.value">${__P(plugin.teams,)}</stringProp></elementProp>
+            <elementProp name="Email_Smtp" elementType="Argument"><stringProp name="Argument.name">Email_Smtp</stringProp><stringProp name="Argument.value">${__P(plugin.email.smtp,)}</stringProp><stringProp name="Argument.metadata">host:port|user|pass|starttls</stringProp></elementProp>
+            <elementProp name="Email_From_To" elementType="Argument"><stringProp name="Argument.name">Email_From_To</stringProp><stringProp name="Argument.value">${__P(plugin.email.fromto,)}</stringProp><stringProp name="Argument.metadata">from|to1,to2</stringProp></elementProp>
+            <elementProp name="Jira_Config" elementType="Argument"><stringProp name="Argument.name">Jira_Config</stringProp><stringProp name="Argument.value">${__P(plugin.jira,)}</stringProp><stringProp name="Argument.metadata">baseUrl|project|issueType|email|token</stringProp></elementProp>
+            <elementProp name="ServiceNow_Config" elementType="Argument"><stringProp name="Argument.name">ServiceNow_Config</stringProp><stringProp name="Argument.value">${__P(plugin.servicenow,)}</stringProp><stringProp name="Argument.metadata">instanceUrl|user|pass|table</stringProp></elementProp>
+            <elementProp name="Notifier_Cooldown_Seconds" elementType="Argument"><stringProp name="Argument.name">Notifier_Cooldown_Seconds</stringProp><stringProp name="Argument.value">3600</stringProp></elementProp>
+
+            <!-- ============== 9. CI gate ============== -->
+            <elementProp name="Fail_On_Verdict" elementType="Argument"><stringProp name="Argument.name">Fail_On_Verdict</stringProp><stringProp name="Argument.value">NO_GO</stringProp><stringProp name="Argument.metadata">Comma-separated. NO_GO or NO_GO,GO_WITH_CONDITIONS</stringProp></elementProp>
+
+            <!-- ============== 10. External metric sources ============== -->
+            <elementProp name="Metric_Sources_Json" elementType="Argument"><stringProp name="Argument.name">Metric_Sources_Json</stringProp><stringProp name="Argument.value">[]</stringProp><stringProp name="Argument.metadata">Prometheus / Loki / Elastic / Datadog / NewRelic / Dynatrace / Azure / GCP - see PARAMETERS.md</stringProp></elementProp>
+
+            <!-- ============== 11. Forecast + rolling baselines ============== -->
+            <elementProp name="Baseline_History_Dir" elementType="Argument"><stringProp name="Argument.name">Baseline_History_Dir</stringProp><stringProp name="Argument.value">baseline-history</stringProp></elementProp>
+            <elementProp name="Forecast_Sla_P95_Ms" elementType="Argument"><stringProp name="Argument.name">Forecast_Sla_P95_Ms</stringProp><stringProp name="Argument.value">1000</stringProp></elementProp>
+            <elementProp name="Baseline_History_Max" elementType="Argument"><stringProp name="Argument.name">Baseline_History_Max</stringProp><stringProp name="Argument.value">100</stringProp></elementProp>
+            <elementProp name="Baseline_History_Max_Days" elementType="Argument"><stringProp name="Argument.name">Baseline_History_Max_Days</stringProp><stringProp name="Argument.value">90</stringProp></elementProp>
+
+            <!-- ============== 12. Analysis Service split ============== -->
+            <elementProp name="Analysis_Service_Url" elementType="Argument"><stringProp name="Argument.name">Analysis_Service_Url</stringProp><stringProp name="Argument.value"></stringProp><stringProp name="Argument.metadata">http://analysis:7788 to share one LLM budget across a CI fleet.</stringProp></elementProp>
+
+            <!-- ============== 13. TLS ============== -->
+            <elementProp name="Tls_Insecure" elementType="Argument"><stringProp name="Argument.name">Tls_Insecure</stringProp><stringProp name="Argument.value">false</stringProp><stringProp name="Argument.metadata">Only true for lab HEC with self-signed certs.</stringProp></elementProp>
+
+          </collectionProp>
+        </elementProp>
+        <stringProp name="classname">com.smartjmeter.SmartObservabilityBackendListener</stringProp>
+      </BackendListener>
+      <hashTree/>
+
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

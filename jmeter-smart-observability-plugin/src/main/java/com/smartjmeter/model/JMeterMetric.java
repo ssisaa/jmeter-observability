@@ -25,6 +25,9 @@ public class JMeterMetric {
     private String application;
     private String responseCode;
     private String threadName;
+    // v2.0.5 - virtual users (JMeter's SampleResult.getAllThreads).
+    private int allThreads;
+    private int groupThreads;
 
     public JMeterMetric() {
     }
@@ -124,4 +127,9 @@ public class JMeterMetric {
     public void setThreadName(String threadName) {
         this.threadName = threadName;
     }
+
+    public int getAllThreads() { return allThreads; }
+    public void setAllThreads(int allThreads) { this.allThreads = allThreads; }
+    public int getGroupThreads() { return groupThreads; }
+    public void setGroupThreads(int groupThreads) { this.groupThreads = groupThreads; }
 }

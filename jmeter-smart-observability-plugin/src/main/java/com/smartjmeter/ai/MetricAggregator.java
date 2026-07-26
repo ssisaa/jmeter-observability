@@ -80,6 +80,7 @@ public class MetricAggregator {
         long[] countArr = new long[slots];
         long[] errArr = new long[slots];
         long[] rtSumArr = new long[slots];
+        int[] threadsMaxArr = new int[slots]; // peak allThreads observed in each bucket
         for (JMeterMetric m : metrics) {
             long t = (long) m.getTimestamp();
             if (t <= 0) continue;
@@ -88,16 +89,19 @@ public class MetricAggregator {
             countArr[idx]++;
             if (!m.isSuccess()) errArr[idx]++;
             rtSumArr[idx] += m.getResponseTime();
+            if (m.getAllThreads() > threadsMaxArr[idx]) threadsMaxArr[idx] = m.getAllThreads();
         }
         List<List<Number>> buckets = new ArrayList<>(slots);
         for (int i = 0; i < slots; i++) {
             long ts_ms = firstBucketMs + (long) i * bucketSeconds * 1000L;
             double avgRt = countArr[i] == 0 ? 0 : (double) rtSumArr[i] / countArr[i];
-            buckets.add(List.of(ts_ms, countArr[i], errArr[i], Math.round(avgRt * 10.0) / 10.0));
+            buckets.add(List.of(ts_ms, countArr[i], errArr[i],
+                    Math.round(avgRt * 10.0) / 10.0, threadsMaxArr[i]));
         }
         ts.put("bucket_seconds", bucketSeconds);
         ts.put("first_bucket_ms", firstBucketMs);
         ts.put("buckets", buckets);
+        // buckets shape now [ts, count, errors, avg_rt_ms, threads]
         return ts;
     }
 
@@ -111,6 +115,7 @@ public class MetricAggregator {
         long satisfied = 0;
         long tolerating = 0;
         Map<String, Long> errorSigs = new HashMap<>();
+        int peakThreads = 0;
         for (int i = 0; i < n; i++) {
             JMeterMetric m = ms.get(i);
             long v = m.getResponseTime();
@@ -125,6 +130,7 @@ public class MetricAggregator {
             bytesRecvTotal += m.getBytesReceived();
             if (v <= apdexT) satisfied++;
             else if (v <= 4 * apdexT) tolerating++;
+            if (m.getAllThreads() > peakThreads) peakThreads = m.getAllThreads();
         }
         java.util.Arrays.sort(rt);
         double avg = n == 0 ? 0 : sum / n;
@@ -156,6 +162,7 @@ public class MetricAggregator {
         s.put("count", (long) n);
         s.put("errors", errors);
         s.put("error_rate", n == 0 ? 0.0 : (double) errors / n);
+        s.put("peak_threads", peakThreads);
         s.put("rt_min_ms", n == 0 ? 0 : rt[0]);
         s.put("rt_avg_ms", Math.round(avg));
         s.put("rt_median_ms", median);

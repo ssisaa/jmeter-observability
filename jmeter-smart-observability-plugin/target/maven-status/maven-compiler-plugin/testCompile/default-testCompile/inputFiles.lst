@@ -10,6 +10,7 @@
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/forecast/RollingBaselinePruneTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/metrics/NamedCollectorsRunnerTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/notify/NotifierCooldownTest.java
+/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/o11y/SplunkO11yMetricsClientPostTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/o11y/SplunkO11yMetricsClientTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/ReportGeneratorTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/SvgChartsV204Test.java

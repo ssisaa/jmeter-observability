@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE templates SYSTEM "https://jmeter.apache.org/1.0/testtemplates.dtd">
+<templates>
+    <template isTestPlan="true">
+        <name>SMART OBSERVABILITY DEFAULT</name>
+        <fileName>smart-observability-default.jmx</fileName>
+        <description>Backend Listener pre-loaded with every JMeter Smart Observability parameter row and safe defaults. Fill in only the values you need; every optional sink skips silently when blank. See docs/PARAMETERS.md for the full field-by-field reference.</description>
+    </template>
+</templates>

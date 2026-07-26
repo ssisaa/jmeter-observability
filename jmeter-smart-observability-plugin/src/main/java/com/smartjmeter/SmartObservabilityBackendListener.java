@@ -614,6 +614,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         metric.setApplication(config.getApplication());
         metric.setResponseCode(result.getResponseCode());
         metric.setThreadName(result.getThreadName());
+        metric.setAllThreads(result.getAllThreads());
+        metric.setGroupThreads(result.getGroupThreads());
         return metric;
     }
 

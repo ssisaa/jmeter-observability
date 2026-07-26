@@ -44,6 +44,7 @@ public final class DemoReport {
         overall.put("rt_max_ms", 3_984);
         overall.put("start_ms", System.currentTimeMillis() - 30 * 60_000L);
         overall.put("stop_ms", System.currentTimeMillis());
+        overall.put("peak_threads", 200);
 
         Map<String, Object> perTxn = new LinkedHashMap<>();
         perTxn.put("GET /home", txn(9_824, 0, 42, 55, 110, 240, 15));
@@ -143,6 +144,15 @@ public final class DemoReport {
                 "1. Enable circuit breaker on payment client (2s open threshold).\n" +
                 "2. Add idempotency retries on `/checkout` with jitter.\n" +
                 "3. Scale API replicas to 6 during 15:00-19:00 UTC.\n");
+        insights.put("root_causes", List.of(
+                "Payment gateway upstream saturating at ~260 rps",
+                "GC pauses cluster around POST /payment invocations",
+                "Redis session eviction storm at t+15min"));
+        insights.put("recommendations", List.of(
+                "Enable circuit breaker on the payment client (2s open threshold)",
+                "Add jittered retries + idempotency keys on /checkout",
+                "Scale API replicas from 4 to 6 during 15:00-19:00 UTC",
+                "Warm the JIT before load starts (canary at 1% for 60s)"));
         insights.put("business_impact", Map.of(
                 "lost_conversions_est", 84,
                 "usd_est", 3_780,
@@ -152,9 +162,16 @@ public final class DemoReport {
                 "cliff_tps", 320,
                 "months_headroom", 4));
 
+        // Splunk O11y demo metrics (drives the O11y visualisation panel)
+        Map<String, List<Map<String, Object>>> o11yDemo = new LinkedHashMap<>();
+        o11yDemo.put("cpu.utilization", syntheticO11ySeries(0.35, 0.78, 24));
+        o11yDemo.put("jvm.gc.pause.ms", syntheticO11ySeries(20, 240, 24));
+        o11yDemo.put("db.connection.saturation", syntheticO11ySeries(0.42, 0.85, 24));
+        o11yDemo.put("k8s.pod.restarts", syntheticO11ySeries(0, 2, 24));
+
         // Build context
         ReportGenerator.Context ctx = new ReportGenerator.Context.Builder()
-                .testName("demo-checkout-load-2.0.3")
+                .testName("demo-checkout-load-2.0.5")
                 .environment("staging")
                 .application("smart-shop")
                 .startMs((long) overall.get("start_ms"))
@@ -164,6 +181,7 @@ public final class DemoReport {
                 .scores(scores)
                 .findings(findings)
                 .baselineDiff(baselineDiff)
+                .o11yMetrics(o11yDemo)
                 .externalMetrics(ext)
                 .forecast(forecast)
                 .baselineHistory(CapacityForecast.loadHistorySnapshots(history))
@@ -238,6 +256,16 @@ public final class DemoReport {
      * lines and error-rate line have something to draw. Deterministic;
      * peaks in the middle of the window, small error blip near the end.
      */
+    private static List<Map<String, Object>> syntheticO11ySeries(double min, double max, int points) {
+        List<Map<String, Object>> out = new java.util.ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            double phase = Math.PI * i / (points - 1);
+            double val = min + (max - min) * Math.sin(phase);
+            out.add(Map.of("ts", (long) i, "value", Math.round(val * 100.0) / 100.0));
+        }
+        return out;
+    }
+
     private static Map<String, Object> syntheticTimeSeries(long startMs, long stopMs) {
         int buckets = 60;
         long bucketMs = Math.max(1, (stopMs - startMs) / buckets);
@@ -249,8 +277,9 @@ public final class DemoReport {
             long errors = 0;
             if (i > buckets * 0.65) errors = (long) (count * 0.02 + (i % 4));
             double avgRt = 150 + 90 * Math.sin(phase) + (errors > 0 ? 80 : 0);
+            int threads = (int) Math.round(20 + 180 * Math.sin(phase)); // active VUsers
             rows.add(List.of(startMs + i * bucketMs, count, errors,
-                    Math.round(avgRt * 10.0) / 10.0));
+                    Math.round(avgRt * 10.0) / 10.0, threads));
         }
         Map<String, Object> ts = new LinkedHashMap<>();
         ts.put("bucket_seconds", Math.max(1, (int) (bucketMs / 1000)));
