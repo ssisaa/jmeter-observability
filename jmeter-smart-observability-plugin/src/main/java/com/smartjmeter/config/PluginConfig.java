@@ -46,6 +46,17 @@ public class PluginConfig {
     public static final String PARAM_JSON_REPORT_PATH = "Json_Report_Path";
     public static final String PARAM_CSV_REPORT_PATH = "Csv_Report_Path";
 
+    // v2.0 - CI gate + PDF + notifiers + extra metric sources
+    public static final String PARAM_FAIL_ON_VERDICT = "Fail_On_Verdict";
+    public static final String PARAM_PDF_REPORT_PATH = "Pdf_Report_Path";
+    public static final String PARAM_SLACK_WEBHOOK = "Slack_Webhook_URL";
+    public static final String PARAM_TEAMS_WEBHOOK = "Teams_Webhook_URL";
+    public static final String PARAM_EMAIL_SMTP = "Email_Smtp";
+    public static final String PARAM_EMAIL_FROM_TO = "Email_From_To";
+    public static final String PARAM_JIRA = "Jira_Config";
+    public static final String PARAM_SERVICENOW = "ServiceNow_Config";
+    public static final String PARAM_METRIC_SOURCES_JSON = "Metric_Sources_Json";
+
     // Phase 2
     public static final String PARAM_SPLUNK_SEARCH_URL = "Splunk_Search_URL";
     public static final String PARAM_SPLUNK_SEARCH_TOKEN = "Splunk_Search_Token";
@@ -151,6 +162,7 @@ public class PluginConfig {
         this.cloudwatchOutputPath = b.cloudwatchOutputPath;
         this.jsonReportPath = b.jsonReportPath;
         this.csvReportPath = b.csvReportPath;
+        this.raw.putAll(b.rawSeeds);
         this.splunkSearchUrl = b.splunkSearchUrl;
         this.splunkSearchToken = b.splunkSearchToken;
         this.splunkLogIndex = b.splunkLogIndex;
@@ -202,6 +214,15 @@ public class PluginConfig {
                 .cloudwatchOutputPath(ctx.getParameter(PARAM_CLOUDWATCH_OUTPUT_PATH, "cloudwatch-metrics.json"))
                 .jsonReportPath(ctx.getParameter(PARAM_JSON_REPORT_PATH, "Performance_Report.json"))
                 .csvReportPath(ctx.getParameter(PARAM_CSV_REPORT_PATH, "Performance_Report.csv"))
+                .putRaw(PARAM_FAIL_ON_VERDICT, ctx.getParameter(PARAM_FAIL_ON_VERDICT, ""))
+                .putRaw(PARAM_PDF_REPORT_PATH, ctx.getParameter(PARAM_PDF_REPORT_PATH, "Performance_Report.pdf"))
+                .putRaw(PARAM_SLACK_WEBHOOK, ctx.getParameter(PARAM_SLACK_WEBHOOK, ""))
+                .putRaw(PARAM_TEAMS_WEBHOOK, ctx.getParameter(PARAM_TEAMS_WEBHOOK, ""))
+                .putRaw(PARAM_EMAIL_SMTP, ctx.getParameter(PARAM_EMAIL_SMTP, ""))
+                .putRaw(PARAM_EMAIL_FROM_TO, ctx.getParameter(PARAM_EMAIL_FROM_TO, ""))
+                .putRaw(PARAM_JIRA, ctx.getParameter(PARAM_JIRA, ""))
+                .putRaw(PARAM_SERVICENOW, ctx.getParameter(PARAM_SERVICENOW, ""))
+                .putRaw(PARAM_METRIC_SOURCES_JSON, ctx.getParameter(PARAM_METRIC_SOURCES_JSON, "[]"))
                 .splunkSearchUrl(ctx.getParameter(PARAM_SPLUNK_SEARCH_URL, ""))
                 .splunkSearchToken(ctx.getParameter(PARAM_SPLUNK_SEARCH_TOKEN, ""))
                 .splunkLogIndex(ctx.getParameter(PARAM_SPLUNK_LOG_INDEX, "app"))
@@ -274,6 +295,22 @@ public class PluginConfig {
     public String getCloudwatchOutputPath() { return cloudwatchOutputPath; }
     public String getJsonReportPath() { return jsonReportPath; }
     public String getCsvReportPath() { return csvReportPath; }
+    public String getFailOnVerdict() { return raw(PARAM_FAIL_ON_VERDICT, ""); }
+    public String getPdfReportPath() { return raw(PARAM_PDF_REPORT_PATH, "Performance_Report.pdf"); }
+    public String getSlackWebhookUrl() { return raw(PARAM_SLACK_WEBHOOK, ""); }
+    public String getTeamsWebhookUrl() { return raw(PARAM_TEAMS_WEBHOOK, ""); }
+    public String getEmailSmtp() { return raw(PARAM_EMAIL_SMTP, ""); }
+    public String getEmailFromTo() { return raw(PARAM_EMAIL_FROM_TO, ""); }
+    public String getJiraConfig() { return raw(PARAM_JIRA, ""); }
+    public String getServiceNowConfig() { return raw(PARAM_SERVICENOW, ""); }
+    public String getMetricSourcesJson() { return raw(PARAM_METRIC_SOURCES_JSON, "[]"); }
+
+    private final java.util.Map<String, String> raw = new java.util.HashMap<>();
+    public String raw(String key, String defaultVal) {
+        String v = raw.get(key);
+        return v == null ? defaultVal : v;
+    }
+    public void putRaw(String key, String value) { raw.put(key, value); }
 
     /**
      * Resolve a user-configured file path against {@link #outputDirectory}.
@@ -401,6 +438,8 @@ public class PluginConfig {
         public Builder cloudwatchOutputPath(String v) { this.cloudwatchOutputPath = v; return this; }
         public Builder jsonReportPath(String v) { this.jsonReportPath = v; return this; }
         public Builder csvReportPath(String v) { this.csvReportPath = v; return this; }
+        public Builder putRaw(String k, String v) { rawSeeds.put(k, v); return this; }
+        private final java.util.Map<String, String> rawSeeds = new java.util.HashMap<>();
         public Builder splunkSearchUrl(String v) { this.splunkSearchUrl = v; return this; }
         public Builder splunkSearchToken(String v) { this.splunkSearchToken = v; return this; }
         public Builder splunkLogIndex(String v) { this.splunkLogIndex = v; return this; }

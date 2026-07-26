@@ -102,6 +102,16 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_CLOUDWATCH_OUTPUT_PATH, "cloudwatch-metrics.json");
         args.addArgument(PluginConfig.PARAM_JSON_REPORT_PATH, "Performance_Report.json");
         args.addArgument(PluginConfig.PARAM_CSV_REPORT_PATH, "Performance_Report.csv");
+        // v2.0 - CI gate + PDF + notifiers + extra metric sources
+        args.addArgument(PluginConfig.PARAM_FAIL_ON_VERDICT, "");
+        args.addArgument(PluginConfig.PARAM_PDF_REPORT_PATH, "Performance_Report.pdf");
+        args.addArgument(PluginConfig.PARAM_SLACK_WEBHOOK, "");
+        args.addArgument(PluginConfig.PARAM_TEAMS_WEBHOOK, "");
+        args.addArgument(PluginConfig.PARAM_EMAIL_SMTP, "");
+        args.addArgument(PluginConfig.PARAM_EMAIL_FROM_TO, "");
+        args.addArgument(PluginConfig.PARAM_JIRA, "");
+        args.addArgument(PluginConfig.PARAM_SERVICENOW, "");
+        args.addArgument(PluginConfig.PARAM_METRIC_SOURCES_JSON, "[]");
         // Phase 2
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_URL, "https://splunk.company.com:8089");
         args.addArgument(PluginConfig.PARAM_SPLUNK_SEARCH_TOKEN, "");
@@ -290,6 +300,22 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                 baselineStore.save(config.getTestName(), aggregate);
                 LOG.log(Level.INFO, "Baseline updated at {0}", baselineStore.getFilePath());
             }
+
+            // PDF export (best-effort)
+            Path pdfPath = config.resolvePath(config.getPdfReportPath());
+            try {
+                Path pdf = new com.smartjmeter.report.PdfExporter().export(resolvedReport, pdfPath);
+                if (pdf != null) LOG.log(Level.INFO, "PDF report written to {0}", pdf);
+            } catch (Exception e) { LOG.log(Level.WARNING, "PDF export failed", e); }
+
+            // Extra metric sources (Prometheus/Loki/Elastic/Datadog/NewRelic/Dynatrace/Azure/GCP)
+            fetchExtraMetricSources(aggregate);
+
+            // Notifications
+            fireNotifications(verdict, resolvedReport);
+
+            // CI gate
+            applyCiGate(verdict, config.resolvePath("."));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Teardown analysis pipeline failed", e);
         }
@@ -462,6 +488,123 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
 
     @SuppressWarnings("unchecked")
     private double slaPassPct(Map<String, Object> aggregate) {
+        Map<String, Object> perTxn = (Map<String, Object>) aggregate.getOrDefault("per_transaction", Map.of());
+        if (perTxn.isEmpty()) return 1.0;
+        long pass = 0, total = 0;
+        long slaP95 = config.getSlaP95Ms();
+        for (Object o : perTxn.values()) {
+            if (o instanceof Map<?, ?> row) {
+                Object p95 = row.get("rt_p95_ms");
+                total++;
+                if (p95 instanceof Number n && n.longValue() <= slaP95) pass++;
+            }
+        }
+        return total == 0 ? 1.0 : (double) pass / total;
+    }
+
+    private boolean baselineRegressionPass(Map<String, Object> baselineDiff) {
+        if (baselineDiff == null || !Boolean.TRUE.equals(baselineDiff.get("has_previous"))) return true;
+        Object overall = baselineDiff.get("overall");
+        if (overall instanceof Map<?, ?> m) {
+            Object p95Pct = m.get("rt_p95_pct");
+            if (p95Pct instanceof Number n && Math.abs(n.doubleValue()) > config.getRegressionThresholdPct()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static double o11ySaturation(Map<String, List<Map<String, Object>>> o11y, String... metrics) {
+        if (o11y == null || o11y.isEmpty()) return 0;
+        double max = 0;
+        for (String m : metrics) {
+            for (Map<String, Object> p : o11y.getOrDefault(m, List.of())) {
+                Object v = p.get("value");
+                if (v instanceof Number n && n.doubleValue() > max) max = n.doubleValue();
+            }
+        }
+        return Math.min(1.0, max);
+    }
+
+    private static double o11yGcPauseRatio(Map<String, List<Map<String, Object>>> o11y) {
+        double max = 0;
+        for (Map<String, Object> p : o11y == null ? List.<Map<String, Object>>of() : o11y.getOrDefault("jvm.gc.pause_ms", List.of())) {
+            Object v = p.get("value");
+            if (v instanceof Number n && n.doubleValue() > max) max = n.doubleValue();
+        }
+        // Normalise: 2000 ms of GC pause -> ratio 1.0
+        return Math.min(1.0, max / 2000d);
+    }
+
+    private static double o11yRestartRate(Map<String, List<Map<String, Object>>> o11y) {
+        double sum = 0;
+        for (Map<String, Object> p : o11y == null ? List.<Map<String, Object>>of() : o11y.getOrDefault("k8s.pod.restart_count", List.of())) {
+            Object v = p.get("value");
+            if (v instanceof Number n) sum += n.doubleValue();
+        }
+        // Normalise: 5 restarts -> ratio 1.0
+        return Math.min(1.0, sum / 5d);
+    }
+
+    private static double observabilityCoverage(Map<String, Object> correlation,
+                                                Map<String, List<Map<String, Object>>> o11y,
+                                                Map<String, Object> cloudwatch) {
+        int have = 0, total = 3;
+        if (correlation != null && !correlation.isEmpty()) have++;
+        if (o11y != null && !o11y.isEmpty()) have++;
+        if (cloudwatch != null && !cloudwatch.isEmpty()) have++;
+        return total == 0 ? 0 : (double) have / total;
+    }
+
+    private static double error_rate(Map<String, Object> aggregate) {
+        Object overall = aggregate.get("overall");
+        if (overall instanceof Map<?, ?> m) {
+            Object v = m.get("error_rate");
+            if (v instanceof Number n) return n.doubleValue();
+        }
+        return 0;
+    }
+
+    /* ---------------- helpers ---------------- */
+
+    private JMeterMetric toMetric(SampleResult result) {
+        JMeterMetric metric = new JMeterMetric();
+        metric.setTestName(config.getTestName());
+        metric.setTransaction(result.getSampleLabel());
+        metric.setResponseTime(result.getTime());
+        metric.setLatency(result.getLatency());
+        metric.setBytesSent(result.getSentBytes());
+        metric.setBytesReceived(result.getBytesAsLong());
+        metric.setSuccess(result.isSuccessful());
+        metric.setTimestamp(result.getTimeStamp());
+        metric.setEnvironment(config.getEnvironment());
+        metric.setApplication(config.getApplication());
+        metric.setResponseCode(result.getResponseCode());
+        metric.setThreadName(result.getThreadName());
+        return metric;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static long extractLong(Map<String, Object> aggregate, String key, long defaultVal) {
+        Object overall = aggregate.get("overall");
+        if (!(overall instanceof Map)) return defaultVal;
+        Object v = ((Map<String, Object>) overall).get(key);
+        if (v instanceof Number n) return n.longValue();
+        return defaultVal;
+    }
+
+    private static void writeJson(Path target, Object body) {
+        try {
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
+            Files.writeString(target, MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(body));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to write JSON output to " + target, e);
+        }
+    }
+}
+ssPct(Map<String, Object> aggregate) {
         Map<String, Object> perTxn = (Map<String, Object>) aggregate.getOrDefault("per_transaction", Map.of());
         if (perTxn.isEmpty()) return 1.0;
         long pass = 0, total = 0;
