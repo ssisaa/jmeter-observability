@@ -55,7 +55,7 @@ const Home = () => {
         <div className="tag">Smart Observability AI</div>
         <h1>JMeter Smart Observability Plugin</h1>
         <p className="subtitle">
-          Enterprise Performance Test Reporting Framework &middot; v2.0.4
+          Enterprise Performance Test Reporting Framework &middot; v2.0.6
         </p>
       </header>
 
@@ -144,33 +144,27 @@ const Home = () => {
           )}
         </Section>
 
-        <Section title="What's new in v2.0.4" testId="section-changelog">
+        <Section title="What's new in v2.0.6" testId="section-changelog">
           <ul className="changelog">
             <li>
-              <b>Management-grade visual analytics</b> &mdash; KPI hero
-              strip, TPS/HPS/RTS/error-rate lines, latency percentile
-              bars, distribution histogram and baseline-comparison bars
-              with a spark-line of the last N runs.
+              <b>Splunk O11y fixed</b> &mdash; batch mode via{" "}
+              <code>POST /v2/timeserieswindow</code>; removed the
+              SignalFlow fallback that returned 406 on some realms.
             </li>
             <li>
-              <b>Report regressions vs baseline</b> &mdash; current run
-              is charted next to previous baseline and historic average
-              p95, coloured by delta.
+              <b>Bigger, focused charts</b> &mdash; latency percentiles,
+              distribution and throughput-per-transaction bars removed;
+              remaining charts are full-width and clearly readable.
             </li>
             <li>
-              <b>PDF and PPTX exports removed</b> &mdash; HTML-only
-              reporting for faster runs, smaller jar (18 MB) and no
-              upstream library surface.
+              <b>Observability panels included</b> &mdash; Splunk
+              O11y and AWS CloudWatch metrics are now charted side by
+              side with the test-run timeframe.
             </li>
             <li>
-              <b>Parameter reference</b> &mdash; every backend-listener
-              field documented with sample values in{" "}
-              <code>docs/PARAMETERS.md</code>.
-            </li>
-            <li>
-              <b>One-click Docker demo</b> &mdash;{" "}
-              <code>docker compose up</code> to get JMeter + Analysis
-              Service + Splunk mock in under two minutes.
+              <b>Confluence-ready Markdown export</b> &mdash;
+              <code>Performance_Report.md</code> with tables and
+              headings you can paste straight into a wiki page.
             </li>
           </ul>
         </Section>

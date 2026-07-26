@@ -41,18 +41,25 @@ Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
 - Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **82/82 pass** (`mvn clean test`) as of v2.0.4.
-- **17/17 backend pytest pass** (`/app/backend/tests/test_downloads.py`) covering plugin download + docs + docker endpoints.
+- **87/87 pass** (`mvn clean test`) as of v2.0.6.
+- **11/11 backend pytest pass** (`/app/backend/tests/test_downloads.py`) covering plugin/demo/docs/docker downloads including Markdown MIME.
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-2.0.4.jar` (~18 MB fat jar; PDF/PPTX libs removed) - drop into `$JMETER_HOME/lib/ext/`.
-- **Downloadable via preview URL**: `/api/downloads/plugin.jar`, `/api/downloads/demo/*` (HTML/JSON/CSV only), `/api/downloads/smoke/*`, `/api/downloads/docs/*`, `/api/downloads/docker/*`.
-- **Frontend home page** now shows 6 sections (Plugin binary / Demo report / Smoke deck / Documentation / Docker bundle / Changelog).
-- `docs/PARAMETERS.md` (~19 KB) - every Backend Listener parameter documented with sample values and where to source them.
-- `docker/` bundle: `docker-compose.yml`, three Dockerfiles, splunk mock, sample JMX, README. `docker compose up` bootstraps Analysis Service + Splunk mock + JMeter runner in ~2 minutes.
+- `target/jmeter-smart-observability-plugin-2.0.6.jar` (~18 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
+- **Downloadable via preview URL**: `/api/downloads/plugin.jar`, `/api/downloads/demo/*` (HTML/JSON/CSV/**MD**), `/api/downloads/smoke/*`, `/api/downloads/docs/*`, `/api/downloads/docker/*`, `/api/downloads/templates/*`.
+- **Frontend home page** now shows 6 sections and reports v2.0.6.
+- `docs/PARAMETERS.md` (~19 KB) - every Backend Listener parameter documented with sample values.
+- `docker/` bundle + `templates/smart-observability-default.jmx` JMeter template.
 - `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
 
-## v2.0.4 (this release)
+## v2.0.6 (this release)
+Feb 2026:
+- **Splunk O11y bugfix** - removed the SignalFlow fallback (returned 406 on some realms). Batch-mode `POST /v2/timeserieswindow` is the sole path.
+- **Report chart cleanup** - removed Latency percentiles, Latency distribution and Throughput-per-transaction bars. Remaining charts get full row width + taller 260x1400 SVG canvas.
+- **CloudWatch panel** - every fetched CloudWatch metric is now charted; O11y and CW panels show a "Test window" banner.
+- **Confluence-ready Markdown export** - `MarkdownReportExporter` produces `Performance_Report.md` with tables + bullets (no HTML/emoji). New `Markdown_Report_Path` param.
+
+## v2.0.4 - v2.0.5 (previous releases)
 Feb 2026:
 - **PDF and PPTX exports REMOVED** - HTML-only reporting (fat jar shrank from 41 MB to 18 MB, no openhtmltopdf / POI surface).
 - **Management-oriented Visual Analytics** - KPI hero strip (samples / error rate / p95 / apdex) + TPS/HPS/RTS/error-rate line charts + latency percentile grouped bars + latency distribution histogram + top-N throughput bars. Verdict-Sankey and dependency-map removed.
