@@ -41,19 +41,24 @@ Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
 - Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **66/66 pass** (`mvn clean test`) as of v2.0.2.
+- **83/83 pass** (`mvn clean test`) as of v2.0.3.
+- **9/9 backend pytest pass** (`/app/backend/tests/test_downloads.py`) covering download endpoints.
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-2.0.2.jar` (~41 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
+- `target/jmeter-smart-observability-plugin-2.0.3.jar` (~41 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
+- **Downloadable via preview URL**: `/api/downloads/plugin.jar` (jar), `/api/downloads/demo/*` (demo HTML/PDF/PPTX/JSON/CSV), `/api/downloads/smoke/*` (notifier smoke deck).
+- **Frontend home page** lists the jar, demo report and smoke deck with one-click download links + v2.0.3 changelog.
+- `docs/demo/Performance_Report.{html,pdf,pptx,json,csv}` - signed public demo report.
 - `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
-- `smoke-notifiers/` - one-command demo (JMX + `.env.example` + `run-notifier-smoke.sh` + README) exercising Slack/Teams/Email/Jira/ServiceNow + CI gate.
 
-## v2.0.2 (this release - P0+P1+P2+P3)
+## v2.0.3 (this release)
 Feb 2026:
-- **Named collectors** wired into their own report section and rule engine — Prometheus, Loki, Elastic, Datadog, New Relic, Dynatrace, Azure Monitor, GCP Ops (`metrics.NamedCollectorsRunner` + generic `R-EXT-CPU/ERR/LAT-*` rules).
-- **SVG charts** inline in HTML report — waterfall (per-txn p50/p95/max), verdict-Sankey (verdict → gates), transaction dependency map (sized by call count, coloured by error rate). All in `report.SvgCharts`.
-- **Capacity forecast** — `forecast.CapacityForecast` runs OLS + quantile regression over baseline snapshots (auto-appended each run under `Baseline_History_Dir`); reports "days to breach" at p50 and p90 envelope.
-- **Notifier smoke deck** — `smoke-notifiers/run-notifier-smoke.sh` runs a 5-loop JMeter test against `httpbin.org/status/500`, forcing NO_GO, fanning out to every configured sink, then exits 3 via the `CiGate` CLI so CI wiring is validated end-to-end.
+- **Download endpoints fixed** - `/api/plugin/info`, `/api/downloads/plugin.jar`, `/api/downloads/demo/{name}`, `/api/downloads/smoke/{name}`. Frontend home page renders download links, changelog and section IDs.
+- **Rolling baselines** - `CapacityForecast.prune(dir, maxCount, maxAgeDays)`; params `Baseline_History_Max` (default 100) and `Baseline_History_Max_Days` (default 90). Prune runs after every snapshot.
+- **Alert cooldowns** - `notify.NotifierCooldown` persists last-fire timestamps per (sink, verdict, testName) under `notifier-cooldowns.json`; param `Notifier_Cooldown_Seconds` (default 3600).
+- **Analysis Service split** - `analysis.AnalysisServer` (main class) exposes `/healthz` + `POST /analyze` via JDK HttpServer; `analysis.AnalysisServiceClient` used when `Analysis_Service_Url` is set. All JMeter runners in a CI fleet can share one LLM budget.
+- **Public demo report** - `demo.DemoReport` generates HTML/PDF/PPTX/JSON/CSV with realistic checkout-load data; used by both the download page and buyer preview.
+- **PDF exporter robustness** - `PdfExporter.normaliseForXhtml` fixes lowercase doctype + named entities so the full report (not just simple test HTML) renders to PDF.
 
 ## v2.0.0 (previous release)
 Feb 2026:
