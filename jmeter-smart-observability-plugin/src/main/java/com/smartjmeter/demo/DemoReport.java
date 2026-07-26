@@ -3,8 +3,6 @@ package com.smartjmeter.demo;
 import com.smartjmeter.forecast.CapacityForecast;
 import com.smartjmeter.report.CsvExporter;
 import com.smartjmeter.report.JsonExporter;
-import com.smartjmeter.report.PdfExporter;
-import com.smartjmeter.report.PptxExporter;
 import com.smartjmeter.report.ReportGenerator;
 
 import java.nio.file.Files;
@@ -57,6 +55,8 @@ public final class DemoReport {
         Map<String, Object> aggregate = new LinkedHashMap<>();
         aggregate.put("overall", overall);
         aggregate.put("per_transaction", perTxn);
+        aggregate.put("time_series", syntheticTimeSeries(
+                (long) overall.get("start_ms"), (long) overall.get("stop_ms")));
 
         // Verdict
         Map<String, Object> verdict = new LinkedHashMap<>();
@@ -166,6 +166,7 @@ public final class DemoReport {
                 .baselineDiff(baselineDiff)
                 .externalMetrics(ext)
                 .forecast(forecast)
+                .baselineHistory(CapacityForecast.loadHistorySnapshots(history))
                 .aiInsights(insights)
                 .llmAnalysis(String.valueOf(insights.get("markdown")))
                 .llmProvider("openai")
@@ -176,20 +177,15 @@ public final class DemoReport {
         Path htmlPath = outDir.resolve("Performance_Report.html");
         new ReportGenerator().generate(ctx, htmlPath.toString());
 
-        Path pdfPath = outDir.resolve("Performance_Report.pdf");
-        new PdfExporter().export(htmlPath, pdfPath);
-
         Map<String, Object> envelope = JsonExporter.envelope(
                 "report.v2.json",
                 "demo-" + now,
-                "demo-checkout-load-2.0.3", "staging", "smart-shop",
+                "demo-checkout-load-2.0.4", "staging", "smart-shop",
                 aggregate, scores, verdict, findings,
                 baselineDiff, Map.of("failure_count", 148L, "window_seconds", 30L,
                         "windows", List.of()),
                 Map.of(), Map.of(), insights, ext, forecast);
         new JsonExporter().export(outDir.resolve("Performance_Report.json"), envelope);
-
-        new PptxExporter().export(envelope, outDir.resolve("Performance_Report.pptx"));
         new CsvExporter().export(outDir.resolve("Performance_Report.csv"), aggregate);
 
         // Cleanup temp history dir
@@ -235,5 +231,31 @@ public final class DemoReport {
 
     private static Map<String, Object> pt(double v) {
         return Map.of("value", v);
+    }
+
+    /**
+     * Emits a realistic-looking traffic curve so the demo's TPS/HPS/RTS
+     * lines and error-rate line have something to draw. Deterministic;
+     * peaks in the middle of the window, small error blip near the end.
+     */
+    private static Map<String, Object> syntheticTimeSeries(long startMs, long stopMs) {
+        int buckets = 60;
+        long bucketMs = Math.max(1, (stopMs - startMs) / buckets);
+        List<List<Number>> rows = new java.util.ArrayList<>(buckets);
+        for (int i = 0; i < buckets; i++) {
+            double phase = Math.PI * i / (buckets - 1);
+            double load = 60 + 380 * Math.sin(phase); // ramp up, peak, ramp down
+            long count = (long) Math.max(0, load + (i % 5) * 6);
+            long errors = 0;
+            if (i > buckets * 0.65) errors = (long) (count * 0.02 + (i % 4));
+            double avgRt = 150 + 90 * Math.sin(phase) + (errors > 0 ? 80 : 0);
+            rows.add(List.of(startMs + i * bucketMs, count, errors,
+                    Math.round(avgRt * 10.0) / 10.0));
+        }
+        Map<String, Object> ts = new LinkedHashMap<>();
+        ts.put("bucket_seconds", Math.max(1, (int) (bucketMs / 1000)));
+        ts.put("first_bucket_ms", startMs);
+        ts.put("buckets", rows);
+        return ts;
     }
 }

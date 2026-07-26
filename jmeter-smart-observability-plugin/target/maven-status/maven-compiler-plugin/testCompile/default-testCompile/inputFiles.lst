@@ -11,10 +11,7 @@
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/metrics/NamedCollectorsRunnerTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/notify/NotifierCooldownTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/o11y/SplunkO11yMetricsClientTest.java
-/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/PdfExporterTest.java
-/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/PptxExporterTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/ReportGeneratorTest.java
-/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/ReportV202SectionsTest.java
-/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/SvgChartsTest.java
+/app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/report/SvgChartsV204Test.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/splunk/AsyncBatchingHECClientTest.java
 /app/jmeter-smart-observability-plugin/src/test/java/com/smartjmeter/splunk/SplunkSearchClientTest.java

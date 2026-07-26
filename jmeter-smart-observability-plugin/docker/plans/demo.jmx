@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Smart Observability Demo" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="mixed traffic" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">30</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">4</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">3</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /home" enabled="true">
+          <stringProp name="HTTPSampler.domain">httpbin.org</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/status/200</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /checkout" enabled="true">
+          <stringProp name="HTTPSampler.domain">httpbin.org</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/status/500</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+      <BackendListener guiclass="BackendListenerGui" testclass="BackendListener" testname="Smart Observability Backend Listener" enabled="true">
+        <elementProp name="arguments" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+          <collectionProp name="Arguments.arguments">
+            <elementProp name="Test_Name" elementType="Argument">
+              <stringProp name="Argument.name">Test_Name</stringProp>
+              <stringProp name="Argument.value">docker-demo</stringProp>
+            </elementProp>
+            <elementProp name="Environment" elementType="Argument">
+              <stringProp name="Argument.name">Environment</stringProp>
+              <stringProp name="Argument.value">docker</stringProp>
+            </elementProp>
+            <elementProp name="Application" elementType="Argument">
+              <stringProp name="Argument.name">Application</stringProp>
+              <stringProp name="Argument.value">smart-shop</stringProp>
+            </elementProp>
+            <elementProp name="Output_Directory" elementType="Argument">
+              <stringProp name="Argument.name">Output_Directory</stringProp>
+              <stringProp name="Argument.value">${__P(out.dir,./out)}</stringProp>
+            </elementProp>
+            <elementProp name="Enable_Splunk" elementType="Argument">
+              <stringProp name="Argument.name">Enable_Splunk</stringProp>
+              <stringProp name="Argument.value">true</stringProp>
+            </elementProp>
+            <elementProp name="Splunk_URL" elementType="Argument">
+              <stringProp name="Argument.name">Splunk_URL</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.splunk.url,http://splunk-mock:8088)}</stringProp>
+            </elementProp>
+            <elementProp name="Splunk_Token" elementType="Argument">
+              <stringProp name="Argument.name">Splunk_Token</stringProp>
+              <stringProp name="Argument.value">dev-token</stringProp>
+            </elementProp>
+            <elementProp name="Splunk_Index" elementType="Argument">
+              <stringProp name="Argument.name">Splunk_Index</stringProp>
+              <stringProp name="Argument.value">perf</stringProp>
+            </elementProp>
+            <elementProp name="Analysis_Service_Url" elementType="Argument">
+              <stringProp name="Argument.name">Analysis_Service_Url</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.analysis.url,http://analysis:7788)}</stringProp>
+            </elementProp>
+            <elementProp name="Fail_On_Verdict" elementType="Argument">
+              <stringProp name="Argument.name">Fail_On_Verdict</stringProp>
+              <stringProp name="Argument.value">${__P(plugin.gate,NO_GO)}</stringProp>
+            </elementProp>
+            <elementProp name="Report_Output_Path" elementType="Argument">
+              <stringProp name="Argument.name">Report_Output_Path</stringProp>
+              <stringProp name="Argument.value">Performance_Report.html</stringProp>
+            </elementProp>
+          </collectionProp>
+        </elementProp>
+        <stringProp name="classname">com.smartjmeter.SmartObservabilityBackendListener</stringProp>
+      </BackendListener>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

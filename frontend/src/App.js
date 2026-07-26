@@ -55,7 +55,7 @@ const Home = () => {
         <div className="tag">Smart Observability AI</div>
         <h1>JMeter Smart Observability Plugin</h1>
         <p className="subtitle">
-          Enterprise Performance Test Reporting Framework &middot; v2.0.3
+          Enterprise Performance Test Reporting Framework &middot; v2.0.4
         </p>
       </header>
 
@@ -112,26 +112,65 @@ const Home = () => {
           )}
         </Section>
 
-        <Section title="What's new in v2.0.3" testId="section-changelog">
+        <Section title="Documentation" testId="section-docs">
+          {info?.docs && info.docs.length > 0 ? (
+            <div className="download-list">
+              {info.docs.map((d, i) => (
+                <DownloadRow
+                  key={d.name}
+                  item={d}
+                  testId={`download-docs-${i}`}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No docs found.</p>
+          )}
+        </Section>
+
+        <Section title="Docker Compose demo bundle" testId="section-docker">
+          {info?.docker && info.docker.length > 0 ? (
+            <div className="download-list">
+              {info.docker.map((d, i) => (
+                <DownloadRow
+                  key={d.name}
+                  item={d}
+                  testId={`download-docker-${i}`}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Docker bundle not found.</p>
+          )}
+        </Section>
+
+        <Section title="What's new in v2.0.4" testId="section-changelog">
           <ul className="changelog">
             <li>
-              <b>Rolling baselines</b> &mdash; auto-prune snapshots older than{" "}
-              <code>Baseline_History_Max_Days</code> and cap at{" "}
-              <code>Baseline_History_Max</code>.
+              <b>Management-grade visual analytics</b> &mdash; KPI hero
+              strip, TPS/HPS/RTS/error-rate lines, latency percentile
+              bars, distribution histogram and baseline-comparison bars
+              with a spark-line of the last N runs.
             </li>
             <li>
-              <b>Alert cooldowns</b> &mdash; per-sink+verdict throttle so the
-              same NO_GO won't page ServiceNow twice.
+              <b>Report regressions vs baseline</b> &mdash; current run
+              is charted next to previous baseline and historic average
+              p95, coloured by delta.
             </li>
             <li>
-              <b>Analysis service split</b> &mdash; run{" "}
-              <code>com.smartjmeter.analysis.AnalysisServer</code> once,
-              point every JMeter runner at it via{" "}
-              <code>Analysis_Service_Url</code>.
+              <b>PDF and PPTX exports removed</b> &mdash; HTML-only
+              reporting for faster runs, smaller jar (18 MB) and no
+              upstream library surface.
             </li>
             <li>
-              <b>Public demo report</b> &mdash; one-command HTML/PDF/PPTX/JSON
-              generator (<code>com.smartjmeter.demo.DemoReport</code>).
+              <b>Parameter reference</b> &mdash; every backend-listener
+              field documented with sample values in{" "}
+              <code>docs/PARAMETERS.md</code>.
+            </li>
+            <li>
+              <b>One-click Docker demo</b> &mdash;{" "}
+              <code>docker compose up</code> to get JMeter + Analysis
+              Service + Splunk mock in under two minutes.
             </li>
           </ul>
         </Section>

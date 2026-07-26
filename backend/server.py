@@ -20,6 +20,8 @@ PLUGIN_ROOT = Path('/app/jmeter-smart-observability-plugin')
 PLUGIN_TARGET = PLUGIN_ROOT / 'target'
 PLUGIN_DEMO_DIR = PLUGIN_ROOT / 'docs' / 'demo'
 PLUGIN_SMOKE_DIR = PLUGIN_ROOT / 'smoke-notifiers'
+PLUGIN_DOCS_DIR = PLUGIN_ROOT / 'docs'
+PLUGIN_DOCKER_DIR = PLUGIN_ROOT / 'docker'
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -112,6 +114,26 @@ async def plugin_info():
                     "size_bytes": p.stat().st_size,
                     "url": f"/api/downloads/smoke/{p.name}",
                 })
+    # Top-level markdown docs
+    docs = []
+    if PLUGIN_DOCS_DIR.is_dir():
+        for p in sorted(PLUGIN_DOCS_DIR.iterdir()):
+            if p.is_file() and p.suffix.lower() == '.md':
+                docs.append({
+                    "name": p.name,
+                    "size_bytes": p.stat().st_size,
+                    "url": f"/api/downloads/docs/{p.name}",
+                })
+    # Docker Compose bundle (single-level only)
+    docker = []
+    if PLUGIN_DOCKER_DIR.is_dir():
+        for p in sorted(PLUGIN_DOCKER_DIR.iterdir()):
+            if p.is_file() and not p.name.startswith('.'):
+                docker.append({
+                    "name": p.name,
+                    "size_bytes": p.stat().st_size,
+                    "url": f"/api/downloads/docker/{p.name}",
+                })
     return {
         "jar": None if jar is None else {
             "name": jar.name,
@@ -121,6 +143,8 @@ async def plugin_info():
         },
         "demos": demos,
         "smoke": smoke,
+        "docs": docs,
+        "docker": docker,
     }
 
 
@@ -173,6 +197,35 @@ async def download_smoke(name: str):
     media = {
         ".jmx": "application/xml",
         ".sh": "text/x-shellscript",
+        ".md": "text/markdown",
+    }.get(p.suffix.lower(), "text/plain")
+    return FileResponse(
+        path=str(p),
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{p.name}"'},
+    )
+
+
+@api_router.get("/downloads/docs/{name}")
+async def download_docs(name: str):
+    """Serve a top-level markdown doc (Parameters, architecture)."""
+    p = _safe_child(PLUGIN_DOCS_DIR, name)
+    return FileResponse(
+        path=str(p),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{p.name}"'},
+    )
+
+
+@api_router.get("/downloads/docker/{name}")
+async def download_docker(name: str):
+    """Serve a file from the docker demo bundle."""
+    p = _safe_child(PLUGIN_DOCKER_DIR, name)
+    media = {
+        ".yml": "application/yaml",
+        ".yaml": "application/yaml",
+        ".dockerfile": "text/plain",
+        ".py": "text/x-python",
         ".md": "text/markdown",
     }.get(p.suffix.lower(), "text/plain")
     return FileResponse(

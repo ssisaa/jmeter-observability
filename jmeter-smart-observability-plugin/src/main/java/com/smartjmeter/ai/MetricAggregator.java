@@ -54,7 +54,51 @@ public class MetricAggregator {
         if (stopMs != Long.MIN_VALUE) overall.put("stop_ms", stopMs);
         out.put("overall", overall);
         out.put("per_transaction", perTxn);
+        out.put("time_series", buildTimeSeries(metrics, startMs, stopMs));
         return out;
+    }
+
+    /**
+     * Bucketise all samples into 1-second buckets so the report can draw
+     * throughput/TPS, hits-per-second and response-time-over-time charts.
+     * Returns {@code {"bucket_seconds":1,"first_bucket_ms":..,"buckets":[[ts,count,errors,avg_rt_ms],...]}}
+     */
+    private static Map<String, Object> buildTimeSeries(List<JMeterMetric> metrics, long startMs, long stopMs) {
+        Map<String, Object> ts = new LinkedHashMap<>();
+        if (startMs == Long.MAX_VALUE || stopMs == Long.MIN_VALUE || metrics.isEmpty()) {
+            ts.put("bucket_seconds", 1);
+            ts.put("first_bucket_ms", 0L);
+            ts.put("buckets", List.of());
+            return ts;
+        }
+        long span = Math.max(1, (stopMs - startMs) / 1000);
+        // Cap at 300 buckets so the SVG stays readable.
+        int bucketSeconds = (int) Math.max(1, (span + 299) / 300);
+        long firstBucketMs = (startMs / (bucketSeconds * 1000L)) * (bucketSeconds * 1000L);
+        long lastBucketMs = (stopMs / (bucketSeconds * 1000L)) * (bucketSeconds * 1000L);
+        int slots = (int) ((lastBucketMs - firstBucketMs) / (bucketSeconds * 1000L)) + 1;
+        long[] countArr = new long[slots];
+        long[] errArr = new long[slots];
+        long[] rtSumArr = new long[slots];
+        for (JMeterMetric m : metrics) {
+            long t = (long) m.getTimestamp();
+            if (t <= 0) continue;
+            int idx = (int) ((t - firstBucketMs) / (bucketSeconds * 1000L));
+            if (idx < 0 || idx >= slots) continue;
+            countArr[idx]++;
+            if (!m.isSuccess()) errArr[idx]++;
+            rtSumArr[idx] += m.getResponseTime();
+        }
+        List<List<Number>> buckets = new ArrayList<>(slots);
+        for (int i = 0; i < slots; i++) {
+            long ts_ms = firstBucketMs + (long) i * bucketSeconds * 1000L;
+            double avgRt = countArr[i] == 0 ? 0 : (double) rtSumArr[i] / countArr[i];
+            buckets.add(List.of(ts_ms, countArr[i], errArr[i], Math.round(avgRt * 10.0) / 10.0));
+        }
+        ts.put("bucket_seconds", bucketSeconds);
+        ts.put("first_bucket_ms", firstBucketMs);
+        ts.put("buckets", buckets);
+        return ts;
     }
 
     private static Map<String, Object> summarise(List<JMeterMetric> ms, long start, long stop, long apdexT) {

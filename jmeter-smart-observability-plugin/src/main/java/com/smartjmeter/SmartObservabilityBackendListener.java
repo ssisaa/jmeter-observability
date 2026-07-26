@@ -102,10 +102,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_CLOUDWATCH_OUTPUT_PATH, "cloudwatch-metrics.json");
         args.addArgument(PluginConfig.PARAM_JSON_REPORT_PATH, "Performance_Report.json");
         args.addArgument(PluginConfig.PARAM_CSV_REPORT_PATH, "Performance_Report.csv");
-        // v2.0 - CI gate + PDF + notifiers + extra metric sources
+        // v2.0 - CI gate + notifiers + extra metric sources
         args.addArgument(PluginConfig.PARAM_FAIL_ON_VERDICT, "");
-        args.addArgument(PluginConfig.PARAM_PDF_REPORT_PATH, "Performance_Report.pdf");
-        args.addArgument(PluginConfig.PARAM_PPTX_REPORT_PATH, "Performance_Report.pptx");
         args.addArgument(PluginConfig.PARAM_SLACK_WEBHOOK, "");
         args.addArgument(PluginConfig.PARAM_TEAMS_WEBHOOK, "");
         args.addArgument(PluginConfig.PARAM_EMAIL_SMTP, "");
@@ -289,6 +287,8 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                     .llmModel(config.isLlmEnabled() ? config.getLlmModel() : null)
                     .externalMetrics(externalMetrics)
                     .forecast(forecast)
+                    .baselineHistory(com.smartjmeter.forecast.CapacityForecast.loadHistorySnapshots(
+                            config.resolvePath(config.getBaselineHistoryDir())))
                     .build();
             Path resolvedReport = config.resolvePath(config.getReportOutputPath());
             new ReportGenerator().generate(reportCtx, resolvedReport.toString());
@@ -315,19 +315,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                 LOG.log(Level.INFO, "Baseline updated at {0}", baselineStore.getFilePath());
             }
 
-            // PDF export (best-effort)
-            Path pdfPath = config.resolvePath(config.getPdfReportPath());
-            try {
-                Path pdf = new com.smartjmeter.report.PdfExporter().export(resolvedReport, pdfPath);
-                if (pdf != null) LOG.log(Level.INFO, "PDF report written to {0}", pdf);
-            } catch (Exception e) { LOG.log(Level.WARNING, "PDF export failed", e); }
-
-            // PPTX export (best-effort)
-            Path pptxPath = config.resolvePath(config.getPptxReportPath());
-            try {
-                Path pptx = new com.smartjmeter.report.PptxExporter().export(envelope, pptxPath);
-                if (pptx != null) LOG.log(Level.INFO, "PPTX report written to {0}", pptx);
-            } catch (Exception e) { LOG.log(Level.WARNING, "PPTX export failed", e); }
+            // PDF/PPTX exports removed in v2.0.4 (HTML-only reporting).
 
             // Extra metric sources were already fetched before rules; nothing to do here.
 

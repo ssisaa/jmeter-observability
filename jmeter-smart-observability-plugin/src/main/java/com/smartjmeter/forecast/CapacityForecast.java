@@ -205,6 +205,34 @@ public final class CapacityForecast {
         return removed;
     }
 
+    /**
+     * v2.0.4 - load raw snapshots (timestamp_ms + p95_ms) from history for the
+     * ReportGenerator's baseline-comparison chart.
+     */
+    public static List<Map<String, Object>> loadHistorySnapshots(Path historyDir) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (historyDir == null || !Files.isDirectory(historyDir)) return out;
+        try (Stream<Path> s = Files.list(historyDir)) {
+            s.filter(p -> p.getFileName().toString().startsWith("snapshot-")
+                       && p.getFileName().toString().endsWith(".json"))
+             .forEach(p -> {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> m = MAPPER.readValue(Files.readString(p), Map.class);
+                    if (m.get("timestamp_ms") instanceof Number && m.get("p95_ms") instanceof Number) {
+                        out.add(m);
+                    }
+                } catch (Exception ignore) { /* skip bad snapshot */ }
+             });
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to list history " + historyDir, e);
+        }
+        out.sort((a, b) -> Long.compare(
+                ((Number) a.get("timestamp_ms")).longValue(),
+                ((Number) b.get("timestamp_ms")).longValue()));
+        return out;
+    }
+
     private static long extractSnapshotTimestamp(Path p) {
         String n = p.getFileName().toString();
         // snapshot-<ms>.json

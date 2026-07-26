@@ -1,0 +1,74 @@
+# -----------------------------------------------------------------------------
+# JMeter Smart Observability - one-click demo stack
+# -----------------------------------------------------------------------------
+# Bring up an Analysis Service, a Splunk HEC mock, and a JMeter runner
+# preloaded with the v2.0.4 plugin:
+#
+#     docker compose -f docker/docker-compose.yml up --build --abort-on-container-exit jmeter
+#
+# Then open:
+#   - analysis  http://localhost:7788/healthz
+#   - splunk    http://localhost:8088/services/collector (HEC mock echo)
+#   - report    ./docker/out/Performance_Report.html
+# -----------------------------------------------------------------------------
+
+services:
+
+  analysis:
+    build:
+      context: ..
+      dockerfile: docker/analysis.Dockerfile
+    image: smart-observability/analysis:2.0.4
+    container_name: smart-observability-analysis
+    environment:
+      ANALYSIS_HOST: "0.0.0.0"
+      ANALYSIS_PORT: "7788"
+      # Uncomment and set to enable real LLM analysis:
+      # ANALYSIS_PROVIDER: "openai"
+      # ANALYSIS_MODEL: "gpt-5.2"
+      # ANALYSIS_LLM_API_KEY: "${OPENAI_API_KEY}"
+    ports:
+      - "7788:7788"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7788/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+
+  splunk-mock:
+    build:
+      context: ..
+      dockerfile: docker/splunk-mock.Dockerfile
+    image: smart-observability/splunk-mock:2.0.4
+    container_name: smart-observability-splunk-mock
+    ports:
+      - "8088:8088"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8088/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+
+  jmeter:
+    build:
+      context: ..
+      dockerfile: docker/jmeter.Dockerfile
+    image: smart-observability/jmeter:2.0.4
+    container_name: smart-observability-jmeter
+    depends_on:
+      analysis:
+        condition: service_healthy
+      splunk-mock:
+        condition: service_healthy
+    volumes:
+      - ./out:/work/out
+      - ./plans:/work/plans
+    working_dir: /work
+    command: >
+      -n -t /work/plans/demo.jmx
+      -l /work/out/results.jtl
+      -j /work/out/jmeter.log
+      -Jout.dir=/work/out
+      -Jplugin.splunk.url=http://splunk-mock:8088
+      -Jplugin.analysis.url=http://analysis:7788
+      -Jplugin.gate=NO_GO

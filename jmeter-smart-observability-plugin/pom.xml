@@ -7,7 +7,7 @@
 
     <groupId>com.smartjmeter</groupId>
     <artifactId>jmeter-smart-observability-plugin</artifactId>
-    <version>2.0.3</version>
+    <version>2.0.4</version>
     <packaging>jar</packaging>
 
     <name>JMeter Smart Observability AI Plugin</name>
@@ -16,9 +16,9 @@
         AI analysis / report generation scaffolding.</description>
 
     <properties>
-        <java.version>21</java.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jmeter.version>5.6.3</jmeter.version>
         <jackson.version>2.17.2</jackson.version>
@@ -83,25 +83,7 @@
             <version>2.28.4</version>
         </dependency>
 
-        <!-- HTML -> PDF (openhtmltopdf uses PDFBox under the hood) -->
-        <dependency>
-            <groupId>com.openhtmltopdf</groupId>
-            <artifactId>openhtmltopdf-core</artifactId>
-            <version>1.0.10</version>
-        </dependency>
-        <dependency>
-            <groupId>com.openhtmltopdf</groupId>
-            <artifactId>openhtmltopdf-pdfbox</artifactId>
-            <version>1.0.10</version>
-        </dependency>
-
-        <!-- PPTX export (Apache POI XSLF) -->
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.2.5</version>
-        </dependency>
-
+        <!-- HTML -> PDF and PPTX exports removed in v2.0.4 (report is HTML-only) -->
         <!-- SMTP email (Jakarta Mail 2.x) -->
         <dependency>
             <groupId>jakarta.mail</groupId>

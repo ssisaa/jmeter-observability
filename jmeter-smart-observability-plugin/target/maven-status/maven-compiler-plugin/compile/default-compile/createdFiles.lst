@@ -18,7 +18,6 @@ com/smartjmeter/util/HttpClientFactory$1.class
 com/smartjmeter/splunk/SplunkHECClient.class
 com/smartjmeter/model/JMeterMetric.class
 com/smartjmeter/ci/CiGate.class
-com/smartjmeter/report/PdfExporter.class
 com/smartjmeter/cloudwatch/CloudWatchMetricsCollector.class
 com/smartjmeter/report/ReportGenerator.class
 com/smartjmeter/score/Finding$Severity.class
@@ -39,9 +38,9 @@ com/smartjmeter/correlate/CorrelationEngine$TimeWindow.class
 com/smartjmeter/notify/Notifiers$ServiceNowNotifier.class
 com/smartjmeter/splunk/SplunkSearchClient.class
 com/smartjmeter/score/HealthScores.class
-com/smartjmeter/report/PptxExporter.class
 com/smartjmeter/score/Verdict.class
 com/smartjmeter/ai/MetricAggregator.class
+com/smartjmeter/ai/LlmClient$1.class
 com/smartjmeter/notify/Notifier.class
 com/smartjmeter/ai/LlmClient$Provider.class
 com/smartjmeter/forecast/CapacityForecast.class

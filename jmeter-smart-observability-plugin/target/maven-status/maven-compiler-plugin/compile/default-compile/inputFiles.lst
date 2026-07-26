@@ -25,8 +25,6 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/CsvExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/JsonExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/Markdown.java
-/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/PdfExporter.java
-/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/PptxExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/ReportGenerator.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/SvgCharts.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/score/Finding.java

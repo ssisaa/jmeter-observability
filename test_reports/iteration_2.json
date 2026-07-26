@@ -1,0 +1,20 @@
+{
+  "summary": "v2.0.4 regression: 17/17 pytest backend tests pass and every frontend section renders correctly. Backend covers: /api/plugin/info shape (jar/demos/smoke/docs/docker) with jar name jmeter-smart-observability-plugin-2.0.4.jar (18,175,886 bytes > 10 MB); demos list contains html/json/csv and NO pdf/pptx; docs contains PARAMETERS.md; docker contains docker-compose.yml. /api/downloads/plugin.jar returns 18,175,886 bytes, Content-Type application/java-archive, first 4 bytes PK\\x03\\x04. Demo HTML contains all 11 required tokens (Visual Analytics, Total samples, TPS, HPS, Response time series, Error rate over time, Latency percentiles, Latency distribution, Throughput per transaction, p95 vs baseline, v2.0.4) and none of the forbidden tokens (Verdict->gate flow, Transaction dependency map). Performance_Report.pdf and .pptx both return 404. PARAMETERS.md served as text/markdown and contains Splunk_URL, Metric_Sources_Json, Fail_On_Verdict. docker-compose.yml contains 'analysis:', 'splunk-mock:', 'jmeter:'. analysis.Dockerfile contains 'com.smartjmeter.analysis.AnalysisServer'. jmeter.Dockerfile contains 'jmeter-smart-observability-plugin' and 'lib/ext'. Path traversal blocked on all 3 subpaths (demo/docs/docker) - ingress normalises to 404, and localhost-direct call also confirms _safe_child returns 400. Frontend at REACT_APP_BACKEND_URL renders all 6 data-testid sections, jar link resolves to /api/downloads/plugin.jar, demo section lists html/json/csv (no pdf, no pptx), docs section lists PARAMETERS.md, docker section lists docker-compose.yml, subtitle mentions v2.0.4 and changelog contains all 5 required items. In-page fetch of jar href returned 18,175,886 bytes with content-type application/java-archive and PK signature - identical to direct API call.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_downloads.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Path-traversal spec asked for HTTP 400 but through the preview URL the Kubernetes ingress normalises URL-encoded '..' before it reaches FastAPI, so the observable code is 404. Direct localhost:8001 calls confirm _safe_child still returns 400. Consider adding an explicit reject-if-contains-slash-or-dot-segment guard at the top of each handler so the semantics don't depend on ingress behaviour.",
+    "Footer still lists only /api/downloads/plugin.jar, /demo/*, /smoke/* but not /docs/* or /docker/* - minor doc drift.",
+    "_safe_child's guard `base.resolve() not in p.parents` is a bit fragile; using `p.relative_to(base)` inside a try/except would be clearer.",
+    "server.py has grown to 250+ lines mixing status_checks CRUD and downloads - consider splitting into routers/plugin.py.",
+    "download_docs and download_docker set Content-Disposition attachment, which is correct; docs endpoint media_type includes 'charset=utf-8' unlike others - inconsistent but harmless."
+  ],
+  "updated_files": ["/app/backend/tests/test_downloads.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None - v2.0.4 artefacts already on disk (jar, demo html/json/csv, PARAMETERS.md, docker bundle).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Tests at /app/backend/tests/test_downloads.py cover v2.0.4. Run with `REACT_APP_BACKEND_URL=... pytest backend/tests/test_downloads.py`. Path-traversal assertions accept both 400 (from _safe_child) and 404 (from ingress normalisation) - both are safe. When adding new download subpaths, mirror the docs/docker tests. Preview URL is https://jmeter-observability.preview.emergentagent.com."
+}

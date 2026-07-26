@@ -1,10 +1,10 @@
 {
   "schema_version" : "report.v2.json",
-  "run_id" : "demo-1785047418025",
-  "test_name" : "demo-checkout-load-2.0.3",
+  "run_id" : "demo-1785052323382",
+  "test_name" : "demo-checkout-load-2.0.4",
   "environment" : "staging",
   "application" : "smart-shop",
-  "generated_at" : "2026-07-26T06:30:19.181584197Z",
+  "generated_at" : "2026-07-26T07:52:03.672676687Z",
   "aggregate" : {
     "overall" : {
       "count" : 24871,
@@ -15,8 +15,8 @@
       "rt_p95_ms" : 612,
       "rt_p99_ms" : 1248,
       "rt_max_ms" : 3984,
-      "start_ms" : 1785045618025,
-      "stop_ms" : 1785047418025
+      "start_ms" : 1785050523381,
+      "stop_ms" : 1785052323381
     },
     "per_transaction" : {
       "GET /home" : {
@@ -69,6 +69,11 @@
         "rt_max_ms" : 3984,
         "error_rate" : 0.017937219730941704
       }
+    },
+    "time_series" : {
+      "bucket_seconds" : 30,
+      "first_bucket_ms" : 1785050523381,
+      "buckets" : [ [ 1785050523381, 60, 0, 150.0 ], [ 1785050553381, 86, 0, 154.8 ], [ 1785050583381, 112, 0, 159.6 ], [ 1785050613381, 138, 0, 164.3 ], [ 1785050643381, 164, 0, 169.0 ], [ 1785050673381, 159, 0, 173.7 ], [ 1785050703381, 185, 0, 178.3 ], [ 1785050733381, 210, 0, 182.8 ], [ 1785050763381, 235, 0, 187.2 ], [ 1785050793381, 259, 0, 191.5 ], [ 1785050823381, 252, 0, 195.7 ], [ 1785050853381, 276, 0, 199.8 ], [ 1785050883381, 298, 0, 203.7 ], [ 1785050913381, 320, 0, 207.4 ], [ 1785050943381, 341, 0, 211.0 ], [ 1785050973381, 332, 0, 214.5 ], [ 1785051003381, 351, 0, 217.7 ], [ 1785051033381, 370, 0, 220.8 ], [ 1785051063381, 388, 0, 223.6 ], [ 1785051093381, 406, 0, 226.3 ], [ 1785051123381, 392, 0, 228.7 ], [ 1785051153381, 407, 0, 230.9 ], [ 1785051183381, 422, 0, 232.9 ], [ 1785051213381, 435, 0, 234.7 ], [ 1785051243381, 447, 0, 236.2 ], [ 1785051273381, 429, 0, 237.4 ], [ 1785051303381, 439, 0, 238.4 ], [ 1785051333381, 448, 0, 239.2 ], [ 1785051363381, 456, 0, 239.7 ], [ 1785051393381, 463, 0, 240.0 ], [ 1785051423381, 439, 0, 240.0 ], [ 1785051453381, 444, 0, 239.7 ], [ 1785051483381, 448, 0, 239.2 ], [ 1785051513381, 451, 0, 238.4 ], [ 1785051543381, 453, 0, 237.4 ], [ 1785051573381, 423, 0, 236.2 ], [ 1785051603381, 423, 0, 234.7 ], [ 1785051633381, 422, 0, 232.9 ], [ 1785051663381, 419, 0, 230.9 ], [ 1785051693381, 416, 0, 228.7 ], [ 1785051723381, 382, 7, 306.3 ], [ 1785051753381, 376, 8, 303.6 ], [ 1785051783381, 370, 9, 300.8 ], [ 1785051813381, 363, 10, 297.7 ], [ 1785051843381, 356, 7, 294.5 ], [ 1785051873381, 317, 7, 291.0 ], [ 1785051903381, 308, 8, 287.4 ], [ 1785051933381, 298, 8, 283.7 ], [ 1785051963381, 288, 5, 279.8 ], [ 1785051993381, 276, 6, 275.7 ], [ 1785052023381, 235, 6, 271.5 ], [ 1785052053381, 223, 7, 267.2 ], [ 1785052083381, 210, 4, 262.8 ], [ 1785052113381, 197, 4, 258.3 ], [ 1785052143381, 183, 5, 253.7 ], [ 1785052173381, 140, 5, 249.0 ], [ 1785052203381, 126, 2, 244.3 ], [ 1785052233381, 112, 3, 239.6 ], [ 1785052263381, 98, 3, 234.8 ], [ 1785052293381, 84, 4, 230.0 ] ]
     }
   },
   "scores" : {
@@ -122,14 +127,14 @@
     "previous_at" : "2026-02-04 14:22 UTC",
     "notable" : [ "POST /payment rt_p95 up 18% vs previous baseline", "POST /checkout error_rate up +1.4pp" ],
     "overall" : {
-      "rt_p95_pct" : 18.4,
-      "error_rate_pp" : 0.4
+      "error_rate_pp" : 0.4,
+      "rt_p95_pct" : 18.4
     }
   },
   "correlation" : {
     "window_seconds" : 30,
-    "windows" : [ ],
-    "failure_count" : 148
+    "failure_count" : 148,
+    "windows" : [ ]
   },
   "o11y_metrics" : { },
   "cloudwatch" : { },
@@ -137,27 +142,18 @@
     "structured" : true,
     "markdown" : "## Root cause hypothesis\nPayment gateway upstream is the dominant contributor to p99 (4.5x p95 on POST /payment). Checkout errors correlate with the same latency spikes.\n\n## Recommended actions\n1. Enable circuit breaker on payment client (2s open threshold).\n2. Add idempotency retries on `/checkout` with jitter.\n3. Scale API replicas to 6 during 15:00-19:00 UTC.\n",
     "business_impact" : {
-      "note" : "Assuming $45 AOV and current checkout drop-off.",
+      "lost_conversions_est" : 84,
       "usd_est" : 3780,
-      "lost_conversions_est" : 84
+      "note" : "Assuming $45 AOV and current checkout drop-off."
     },
     "capacity_estimate" : {
-      "cliff_tps" : 320,
       "peak_supported_tps" : 260,
+      "cliff_tps" : 320,
       "months_headroom" : 4
     }
   },
   "external_metrics" : {
     "prometheus" : {
-      "cpu_saturation" : [ {
-        "value" : 0.62
-      }, {
-        "value" : 0.68
-      }, {
-        "value" : 0.71
-      }, {
-        "value" : 0.66
-      } ],
       "request_error_rate" : [ {
         "value" : 0.006
       }, {
@@ -166,9 +162,25 @@
         "value" : 0.011
       }, {
         "value" : 0.009
+      } ],
+      "cpu_saturation" : [ {
+        "value" : 0.62
+      }, {
+        "value" : 0.68
+      }, {
+        "value" : 0.71
+      }, {
+        "value" : 0.66
       } ]
     },
     "datadog" : {
+      "db_connection_saturation" : [ {
+        "value" : 0.52
+      }, {
+        "value" : 0.55
+      }, {
+        "value" : 0.63
+      } ],
       "api_error_rate_pct" : [ {
         "value" : 0.6
       }, {
@@ -177,13 +189,6 @@
         "value" : 1.1
       }, {
         "value" : 0.9
-      } ],
-      "db_connection_saturation" : [ {
-        "value" : 0.52
-      }, {
-        "value" : 0.55
-      }, {
-        "value" : 0.63
       } ]
     },
     "dynatrace" : {
