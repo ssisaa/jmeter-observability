@@ -25,6 +25,7 @@ com/smartjmeter/report/ReportGenerator$Context.class
 com/smartjmeter/SmartObservabilityBackendListener.class
 com/smartjmeter/notify/NotifierCooldown.class
 com/smartjmeter/analysis/AnalysisServiceClient.class
+com/smartjmeter/report/MarkdownReportExporter.class
 com/smartjmeter/notify/Notifiers$EmailNotifier.class
 com/smartjmeter/store/LocalJsonStore.class
 com/smartjmeter/analysis/AnalysisServer.class

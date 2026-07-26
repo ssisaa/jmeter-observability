@@ -170,7 +170,7 @@ public final class SvgCharts {
      * Generic line/area chart used by TPS/HPS/RTS/error-rate.
      */
     private static String lineChart(double[] xs, double[] ys, String title, String color, boolean fill, String cls) {
-        int width = 900, height = 180, padL = 60, padR = 20, padT = 34, padB = 32;
+        int width = 1400, height = 260, padL = 70, padR = 30, padT = 40, padB = 42;
         double yMax = 0;
         for (double v : ys) if (v > yMax) yMax = v;
         if (yMax <= 0) yMax = 1;
@@ -426,8 +426,8 @@ public final class SvgCharts {
         if (cnt == 0) return "";
         double avg = sum / cnt;
 
-        int width = 900, height = 200, left = 60, top = 40;
-        int plotH = 110;
+        int width = 1400, height = 260, left = 90, top = 46;
+        int plotH = 140;
         double[] bars = {currentP95, last, avg};
         String[] labels = {"Current run", "Previous baseline", "Historic avg (" + cnt + ")"};
         String[] colors = {"#4f46e5", "#0ea5e9", "#94a3b8"};

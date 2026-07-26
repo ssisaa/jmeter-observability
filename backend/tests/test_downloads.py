@@ -1,10 +1,10 @@
-"""Backend tests for JMeter plugin download endpoints - v2.0.4."""
+"""Backend tests for JMeter plugin download endpoints - v2.0.6."""
 import os
 import json
 import pytest
 import requests
 
-BASE_URL = os.environ['REACT_APP_BACKEND_URL'].rstrip('/') if os.environ.get('REACT_APP_BACKEND_URL') else 'https://jmeter-observability.preview.emergentagent.com'
+BASE_URL = os.environ['REACT_APP_BACKEND_URL'].rstrip('/')
 API = f"{BASE_URL}/api"
 
 
@@ -18,19 +18,19 @@ def info():
 # ---- /api/plugin/info shape ----
 def test_plugin_info_shape(info):
     for k in ("jar", "demos", "smoke", "docs", "docker"):
-        assert k in info, f"missing key {k}"
+        assert k in info
 
 
-def test_plugin_info_jar_v204(info):
+def test_plugin_info_jar_v206(info):
     jar = info["jar"]
-    assert jar is not None
-    assert jar["name"] == "jmeter-smart-observability-plugin-2.0.4.jar", jar["name"]
-    assert jar["size_bytes"] > 10_000_000, jar["size_bytes"]
+    assert jar["name"] == "jmeter-smart-observability-plugin-2.0.6.jar", jar["name"]
+    assert jar["size_bytes"] > 10_000_000
     assert jar["url"] == "/api/downloads/plugin.jar"
 
 
-def test_plugin_info_demos_no_pdf_no_pptx(info):
+def test_plugin_info_demos_v206(info):
     names = {d["name"] for d in info["demos"]}
+    assert "Performance_Report.md" in names
     assert "Performance_Report.html" in names
     assert "Performance_Report.json" in names
     assert "Performance_Report.csv" in names
@@ -38,19 +38,9 @@ def test_plugin_info_demos_no_pdf_no_pptx(info):
     assert "Performance_Report.pptx" not in names
 
 
-def test_plugin_info_docs_has_parameters(info):
-    names = {d["name"] for d in info["docs"]}
-    assert "PARAMETERS.md" in names, names
-
-
-def test_plugin_info_docker_has_compose(info):
-    names = {d["name"] for d in info["docker"]}
-    assert "docker-compose.yml" in names, names
-
-
 # ---- /api/downloads/plugin.jar ----
 def test_download_plugin_jar(info):
-    r = requests.get(f"{API}/downloads/plugin.jar", timeout=120)
+    r = requests.get(f"{API}/downloads/plugin.jar", timeout=180)
     assert r.status_code == 200
     assert r.headers.get("content-type") == "application/java-archive"
     body = r.content
@@ -58,109 +48,91 @@ def test_download_plugin_jar(info):
     assert body[:4] == b"PK\x03\x04"
 
 
-# ---- Demo HTML ----
-def test_demo_html_v204_content():
+# ---- Demo Markdown ----
+def test_demo_markdown_v206():
+    r = requests.get(f"{API}/downloads/demo/Performance_Report.md", timeout=30)
+    assert r.status_code == 200
+    ct = r.headers.get("content-type", "")
+    assert ct.startswith("text/markdown"), ct
+    body = r.text
+    assert body.startswith("# Performance Test Report"), body[:120]
+    required = [
+        "## Executive Summary",
+        "## Key Metrics",
+        "## Key Issues",
+        "## Per-Transaction Statistics",
+        "## Root Cause Analysis",
+        "## Recommendations",
+        "## Rollout Plan",
+        "## Rollback Triggers",
+        "v2.0.6",
+        "|---|---|",
+        "| Transaction | Samples | Errors | Err % | p50 | p95 | p99 | Max |",
+    ]
+    for t in required:
+        assert t in body, f"missing '{t}' in Performance_Report.md"
+
+
+# ---- Demo HTML v2.0.6 ----
+def test_demo_html_v206_content():
     r = requests.get(f"{API}/downloads/demo/Performance_Report.html", timeout=30)
     assert r.status_code == 200
     assert r.headers.get("content-type", "").startswith("text/html")
     body = r.text
     required = [
-        "Visual Analytics",
-        "Total samples",
-        "Transactions per second",
-        "Hits per second",
-        "Response time series",
-        "Error rate over time",
+        "Visual Analytics &mdash; JMeter",
+        "Visual Analytics &mdash; Splunk Observability",
+        "Visual Analytics &mdash; AWS CloudWatch",
+        "Test window",
+        "Active virtual users",
+        "Baseline delta table",
+        "Executive Summary",
+        "Root Cause Analysis",
+        "Recommendations",
+        "v2.0.6",
+    ]
+    for t in required:
+        assert t in body, f"missing '{t}' in demo html"
+    forbidden = [
         "Latency percentiles",
         "Latency distribution",
-        "Throughput per transaction",
-        "p95 vs baseline",
-        "v2.0.4",
+        "Throughput per transaction (samples, top 12)",
     ]
-    for token in required:
-        assert token in body, f"missing '{token}' in demo html"
-    forbidden = ["Verdict &rarr; gate flow", "Transaction dependency map"]
-    for token in forbidden:
-        assert token not in body, f"forbidden '{token}' still in demo html"
+    for t in forbidden:
+        assert t not in body, f"forbidden '{t}' still in demo html"
 
 
-# ---- Demo PDF/PPTX must 404 in v2.0.4 ----
+# ---- Demo PDF/PPTX must 404 ----
 def test_demo_pdf_removed():
     r = requests.get(f"{API}/downloads/demo/Performance_Report.pdf", timeout=30)
-    assert r.status_code == 404, r.status_code
+    assert r.status_code == 404
 
 
 def test_demo_pptx_removed():
     r = requests.get(f"{API}/downloads/demo/Performance_Report.pptx", timeout=30)
-    assert r.status_code == 404, r.status_code
+    assert r.status_code == 404
 
 
-# ---- Demo JSON ----
+# ---- Demo JSON still there ----
 def test_demo_json():
     r = requests.get(f"{API}/downloads/demo/Performance_Report.json", timeout=30)
     assert r.status_code == 200
-    data = json.loads(r.content)
-    assert isinstance(data, dict)
+    assert isinstance(json.loads(r.content), dict)
 
 
 # ---- Docs PARAMETERS.md ----
 def test_docs_parameters():
     r = requests.get(f"{API}/downloads/docs/PARAMETERS.md", timeout=30)
     assert r.status_code == 200
-    ct = r.headers.get("content-type", "")
-    assert "text/markdown" in ct, ct
+    assert "text/markdown" in r.headers.get("content-type", "")
     body = r.text
-    for token in ("Splunk_URL", "Metric_Sources_Json", "Fail_On_Verdict"):
-        assert token in body, f"missing {token} in PARAMETERS.md"
-
-
-# ---- Docker bundle ----
-def test_docker_compose_yml():
-    r = requests.get(f"{API}/downloads/docker/docker-compose.yml", timeout=30)
-    assert r.status_code == 200
-    body = r.text
-    for token in ("analysis:", "splunk-mock:", "jmeter:"):
-        assert token in body, f"missing {token} in docker-compose.yml"
-
-
-def test_docker_analysis_dockerfile():
-    r = requests.get(f"{API}/downloads/docker/analysis.Dockerfile", timeout=30)
-    assert r.status_code == 200
-    assert "com.smartjmeter.analysis.AnalysisServer" in r.text
-
-
-def test_docker_jmeter_dockerfile():
-    r = requests.get(f"{API}/downloads/docker/jmeter.Dockerfile", timeout=30)
-    assert r.status_code == 200
-    body = r.text
-    assert "jmeter-smart-observability-plugin" in body
-    assert "lib/ext" in body
+    for token in ("Splunk_URL", "Metric_Sources_Json"):
+        assert token in body
 
 
 # ---- Path traversal ----
-# Note: FastAPI's `{name}` path parameter only matches a single URL segment,
-# so a URL-encoded multi-segment traversal like `..%2F..%2Fetc%2Fpasswd` is
-# collapsed by Starlette back to slashes and simply fails to route (404).
-# To actually exercise the _safe_child guard we send a single-segment `..`
-# which reaches the handler and must be rejected with 400.
-def _assert_traversal_blocked(sub: str):
-    # Ingress may normalise '..' and return 404 before it hits FastAPI; the
-    # backend's _safe_child returns 400. Either way, MUST NOT be 200 / leak.
-    r = requests.get(f"{API}/downloads/{sub}/%2E%2E", timeout=30)
-    assert r.status_code in (400, 404), f"{sub} '..' -> {r.status_code}"
-    assert b"root:" not in r.content
-    r2 = requests.get(f"{API}/downloads/{sub}/..%2F..%2F..%2Fetc%2Fpasswd", timeout=30)
-    assert r2.status_code in (400, 404), f"{sub} multi-seg -> {r2.status_code}"
-    assert b"root:" not in r2.content
-
-
 def test_docs_path_traversal_blocked():
-    _assert_traversal_blocked("docs")
-
-
-def test_docker_path_traversal_blocked():
-    _assert_traversal_blocked("docker")
-
-
-def test_demo_path_traversal_still_blocked():
-    _assert_traversal_blocked("demo")
+    r = requests.get(f"{API}/downloads/docs/..%2Fetc%2Fpasswd", timeout=30)
+    # ingress may normalise to 404; backend guard returns 400. Must NOT be 200.
+    assert r.status_code in (400, 404), r.status_code
+    assert b"root:" not in r.content

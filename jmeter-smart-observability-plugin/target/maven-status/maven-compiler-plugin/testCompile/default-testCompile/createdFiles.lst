@@ -4,6 +4,7 @@ com/smartjmeter/forecast/CapacityForecastTest.class
 com/smartjmeter/splunk/SplunkSearchClientTest.class
 com/smartjmeter/ci/CiGateTest.class
 com/smartjmeter/report/ReportGeneratorTest.class
+com/smartjmeter/report/MarkdownReportExporterTest.class
 com/smartjmeter/o11y/SplunkO11yMetricsClientTest.class
 com/smartjmeter/o11y/SplunkO11yMetricsClientPostTest.class
 com/smartjmeter/ai/LlmAndAnalyzerTest.class

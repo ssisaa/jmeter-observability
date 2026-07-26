@@ -16,8 +16,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * v2.0.5 regression: the client must POST /v2/timeserieswindow with a
- * JSON body (the old GET form now 404s on Splunk O11y).
+ * v2.0.6 regression: batch endpoint is POST /v2/timeserieswindow. The
+ * SignalFlow fallback was removed - it required job orchestration and
+ * returned 406 on realms that only serve the batch endpoint.
  */
 class SplunkO11yMetricsClientPostTest {
 
@@ -62,29 +63,16 @@ class SplunkO11yMetricsClientPostTest {
     }
 
     @Test
-    void fallsBackToSignalflowOn404() throws Exception {
-        AtomicReference<String> path = new AtomicReference<>();
+    void notFoundReturnsEmptyList() throws Exception {
         server.createContext("/v2/timeserieswindow", x -> {
             x.sendResponseHeaders(404, -1);
             x.close();
         });
-        server.createContext("/v2/signalflow/execute", (HttpExchange x) -> {
-            path.set(x.getRequestURI().getPath());
-            String resp = "{\"type\":\"data\",\"tsId\":\"cpu\",\"logicalTimestampMs\":1700000000000,\"value\":0.42}\n"
-                        + "{\"type\":\"metadata\",\"tsId\":\"cpu\"}\n"
-                        + "{\"type\":\"data\",\"tsId\":\"cpu\",\"logicalTimestampMs\":1700000060000,\"value\":0.55}";
-            byte[] out = resp.getBytes(StandardCharsets.UTF_8);
-            x.getResponseHeaders().set("Content-Type", "application/json");
-            x.sendResponseHeaders(200, out.length);
-            try (OutputStream os = x.getResponseBody()) { os.write(out); }
-        });
         server.start();
-
         SplunkO11yMetricsClient c = new SplunkO11yMetricsClient(
                 "http://127.0.0.1:" + port, "tok");
         List<Map<String, Object>> pts = c.fetch("cpu.utilization", 1L, 2L);
-        assertEquals("/v2/signalflow/execute", path.get());
-        assertEquals(2, pts.size());
+        assertTrue(pts.isEmpty(), "404 must return empty list (no SignalFlow fallback)");
     }
 
     @Test
@@ -99,12 +87,5 @@ class SplunkO11yMetricsClientPostTest {
         SplunkO11yMetricsClient c = new SplunkO11yMetricsClient(
                 "http://127.0.0.1:" + port, "tok");
         assertTrue(c.fetch("m", 0L, 1L).isEmpty());
-    }
-
-    @Test
-    void signalflowParserSkipsMetadataFrames() throws Exception {
-        String body = "{\"type\":\"metadata\",\"tsId\":\"m\"}\n"
-                    + "{\"type\":\"data\",\"tsId\":\"m\",\"logicalTimestampMs\":100,\"value\":1.5}";
-        assertEquals(1, SplunkO11yMetricsClient.parseSignalflowResponse(body).size());
     }
 }

@@ -3,6 +3,7 @@ package com.smartjmeter.demo;
 import com.smartjmeter.forecast.CapacityForecast;
 import com.smartjmeter.report.CsvExporter;
 import com.smartjmeter.report.JsonExporter;
+import com.smartjmeter.report.MarkdownReportExporter;
 import com.smartjmeter.report.ReportGenerator;
 
 import java.nio.file.Files;
@@ -169,9 +170,20 @@ public final class DemoReport {
         o11yDemo.put("db.connection.saturation", syntheticO11ySeries(0.42, 0.85, 24));
         o11yDemo.put("k8s.pod.restarts", syntheticO11ySeries(0, 2, 24));
 
+        // AWS CloudWatch demo metrics (drives the CloudWatch visualisation panel)
+        Map<String, Object> cwDemo = new LinkedHashMap<>();
+        Map<String, Object> cwMetrics = new LinkedHashMap<>();
+        cwMetrics.put("HTTPCode_Target_5XX_Count", syntheticO11ySeries(0, 22, 24));
+        cwMetrics.put("TargetResponseTime", syntheticO11ySeries(0.12, 0.94, 24));
+        cwMetrics.put("HealthyHostCount", syntheticO11ySeries(4, 6, 24));
+        cwDemo.put("metrics", cwMetrics);
+        cwDemo.put("alarms", List.of(
+                Map.of("name", "checkout-p95-high", "state", "OK"),
+                Map.of("name", "payment-error-spike", "state", "ALARM")));
+
         // Build context
         ReportGenerator.Context ctx = new ReportGenerator.Context.Builder()
-                .testName("demo-checkout-load-2.0.5")
+                .testName("demo-checkout-load-2.0.6")
                 .environment("staging")
                 .application("smart-shop")
                 .startMs((long) overall.get("start_ms"))
@@ -182,6 +194,7 @@ public final class DemoReport {
                 .findings(findings)
                 .baselineDiff(baselineDiff)
                 .o11yMetrics(o11yDemo)
+                .cloudwatch(cwDemo)
                 .externalMetrics(ext)
                 .forecast(forecast)
                 .baselineHistory(CapacityForecast.loadHistorySnapshots(history))
@@ -198,13 +211,14 @@ public final class DemoReport {
         Map<String, Object> envelope = JsonExporter.envelope(
                 "report.v2.json",
                 "demo-" + now,
-                "demo-checkout-load-2.0.4", "staging", "smart-shop",
+                "demo-checkout-load-2.0.6", "staging", "smart-shop",
                 aggregate, scores, verdict, findings,
                 baselineDiff, Map.of("failure_count", 148L, "window_seconds", 30L,
                         "windows", List.of()),
-                Map.of(), Map.of(), insights, ext, forecast);
+                o11yDemo, cwDemo, insights, ext, forecast);
         new JsonExporter().export(outDir.resolve("Performance_Report.json"), envelope);
         new CsvExporter().export(outDir.resolve("Performance_Report.csv"), aggregate);
+        new MarkdownReportExporter().export(envelope, outDir.resolve("Performance_Report.md"));
 
         // Cleanup temp history dir
         try (var s = Files.walk(history)) {

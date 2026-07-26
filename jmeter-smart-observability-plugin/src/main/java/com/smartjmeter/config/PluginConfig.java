@@ -56,6 +56,9 @@ public class PluginConfig {
     public static final String PARAM_SERVICENOW = "ServiceNow_Config";
     public static final String PARAM_METRIC_SOURCES_JSON = "Metric_Sources_Json";
 
+    // v2.0.6 - Confluence/Wiki Markdown export
+    public static final String PARAM_MARKDOWN_REPORT_PATH = "Markdown_Report_Path";
+
     // v2.0.2 - forecast + baseline history
     public static final String PARAM_BASELINE_HISTORY_DIR = "Baseline_History_Dir";
     public static final String PARAM_FORECAST_SLA_P95_MS = "Forecast_Sla_P95_Ms";
@@ -231,6 +234,7 @@ public class PluginConfig {
                 .putRaw(PARAM_JIRA, ctx.getParameter(PARAM_JIRA, ""))
                 .putRaw(PARAM_SERVICENOW, ctx.getParameter(PARAM_SERVICENOW, ""))
                 .putRaw(PARAM_METRIC_SOURCES_JSON, ctx.getParameter(PARAM_METRIC_SOURCES_JSON, "[]"))
+                .putRaw(PARAM_MARKDOWN_REPORT_PATH, ctx.getParameter(PARAM_MARKDOWN_REPORT_PATH, "Performance_Report.md"))
                 .putRaw(PARAM_BASELINE_HISTORY_DIR, ctx.getParameter(PARAM_BASELINE_HISTORY_DIR, "baseline-history"))
                 .putRaw(PARAM_FORECAST_SLA_P95_MS, ctx.getParameter(PARAM_FORECAST_SLA_P95_MS, "1000"))
                 .putRaw(PARAM_BASELINE_HISTORY_MAX, ctx.getParameter(PARAM_BASELINE_HISTORY_MAX, "100"))
@@ -317,6 +321,7 @@ public class PluginConfig {
     public String getJiraConfig() { return raw(PARAM_JIRA, ""); }
     public String getServiceNowConfig() { return raw(PARAM_SERVICENOW, ""); }
     public String getMetricSourcesJson() { return raw(PARAM_METRIC_SOURCES_JSON, "[]"); }
+    public String getMarkdownReportPath() { return raw(PARAM_MARKDOWN_REPORT_PATH, "Performance_Report.md"); }
     public String getBaselineHistoryDir() { return raw(PARAM_BASELINE_HISTORY_DIR, "baseline-history"); }
     public long getForecastSlaP95Ms() { return parseLong(raw(PARAM_FORECAST_SLA_P95_MS, "1000"), 1000L); }
     public int getBaselineHistoryMax() { return (int) parseLong(raw(PARAM_BASELINE_HISTORY_MAX, "100"), 100L); }

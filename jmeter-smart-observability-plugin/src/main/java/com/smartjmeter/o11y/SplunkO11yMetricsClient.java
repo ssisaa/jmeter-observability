@@ -84,9 +84,10 @@ public class SplunkO11yMetricsClient {
     public List<Map<String, Object>> fetch(String metric, long startMs, long stopMs) {
         try {
             String program = toProgramText(metric);
-            // v2.0.5: switched from the deprecated GET /v2/timeserieswindow to
-            // POST with a JSON body; the GET form now returns 404 on new
-            // realms. This also matches the current Splunk O11y REST API.
+            // v2.0.6: batch time-series is fetched from POST /v2/timeserieswindow.
+            // (SignalFlow streaming is deliberately NOT used - it's for live
+            //  dashboards, requires job/stream orchestration and returns 406
+            //  on realms that only serve the batch endpoint.)
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("program", program);
             body.put("startMs", startMs);
@@ -102,9 +103,13 @@ public class SplunkO11yMetricsClient {
                     .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
                     .build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() == 404 || resp.statusCode() == 405) {
-                // Fall back to the SignalFlow execute endpoint used by newer realms.
-                return fetchViaSignalflow(program, startMs, stopMs);
+            if (resp.statusCode() == 404) {
+                LOG.log(Level.WARNING,
+                        "O11y /v2/timeserieswindow returned 404 - is O11y_URL correct? "
+                                + "Expected format: https://api.<realm>.signalfx.com (found: {0}). "
+                                + "Metric skipped: {1}",
+                        new Object[]{baseUrl, metric});
+                return Collections.emptyList();
             }
             if (resp.statusCode() >= 300) {
                 LOG.log(Level.WARNING, "O11y timeserieswindow {0}: {1}",
@@ -116,65 +121,6 @@ public class SplunkO11yMetricsClient {
             LOG.log(Level.WARNING, "Failed to fetch o11y metric: " + metric, e);
             return Collections.emptyList();
         }
-    }
-
-    /**
-     * Fallback to {@code POST /v2/signalflow/execute} for realms that no
-     * longer serve {@code /v2/timeserieswindow}. Returns the same flat
-     * point list shape.
-     */
-    private List<Map<String, Object>> fetchViaSignalflow(String program, long startMs, long stopMs) {
-        try {
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("program", program);
-            body.put("start", startMs);
-            body.put("stop", stopMs);
-            body.put("resolution", resolutionMs);
-            body.put("immediate", true);
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/v2/signalflow/execute"))
-                    .timeout(Duration.ofSeconds(20))
-                    .header("X-SF-TOKEN", token)
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
-                    .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() >= 300) {
-                LOG.log(Level.WARNING, "O11y signalflow {0}: {1}",
-                        new Object[]{resp.statusCode(), snippet(resp.body())});
-                return Collections.emptyList();
-            }
-            return parseSignalflowResponse(resp.body());
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "SignalFlow fallback failed", e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Parse SignalFlow /v2/signalflow/execute response. The body is
-     * newline-delimited JSON where each line is either a metadata frame
-     * ({@code {"type":"metadata","tsId":"...","properties":{...}}}) or a
-     * data frame ({@code {"type":"data","tsId":"...","logicalTimestampMs":..,"value":..}}).
-     */
-    public static List<Map<String, Object>> parseSignalflowResponse(String body) throws Exception {
-        List<Map<String, Object>> out = new ArrayList<>();
-        if (body == null || body.isBlank()) return out;
-        for (String line : body.split("\r?\n")) {
-            if (line.isBlank()) continue;
-            JsonNode node;
-            try { node = MAPPER.readTree(line); }
-            catch (Exception e) { continue; }
-            if (!"data".equals(node.path("type").asText())) continue;
-            Map<String, Object> p = new HashMap<>();
-            p.put("tsid", node.path("tsId").asText(""));
-            p.put("ts", node.path("logicalTimestampMs").asLong());
-            JsonNode v = node.path("value");
-            p.put("value", v.isNumber() ? v.numberValue() : v.asText());
-            out.add(p);
-        }
-        return out;
     }
 
     private static String snippet(String s) {

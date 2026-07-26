@@ -111,6 +111,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         args.addArgument(PluginConfig.PARAM_JIRA, "");
         args.addArgument(PluginConfig.PARAM_SERVICENOW, "");
         args.addArgument(PluginConfig.PARAM_METRIC_SOURCES_JSON, "[]");
+        args.addArgument(PluginConfig.PARAM_MARKDOWN_REPORT_PATH, "Performance_Report.md");
         args.addArgument(PluginConfig.PARAM_BASELINE_HISTORY_DIR, "baseline-history");
         args.addArgument(PluginConfig.PARAM_FORECAST_SLA_P95_MS, "1000");
         args.addArgument(PluginConfig.PARAM_BASELINE_HISTORY_MAX, "100");
@@ -316,6 +317,13 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             }
 
             // PDF/PPTX exports removed in v2.0.4 (HTML-only reporting).
+
+            // v2.0.6 - Confluence/Wiki Markdown export (best-effort)
+            try {
+                Path mdPath = config.resolvePath(config.getMarkdownReportPath());
+                Path md = new com.smartjmeter.report.MarkdownReportExporter().export(envelope, mdPath);
+                if (md != null) LOG.log(Level.INFO, "Markdown report written to {0}", md);
+            } catch (Exception e) { LOG.log(Level.WARNING, "Markdown export failed", e); }
 
             // Extra metric sources were already fetched before rules; nothing to do here.
 

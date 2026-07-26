@@ -7,6 +7,11 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * v2.0.6 - only tests the chart types still rendered by ReportGenerator
+ * (latency percentile bars, latency histogram and transaction top-12 bars
+ * were removed on user request).
+ */
 class SvgChartsV204Test {
 
     private static Map<String, Object> demoAgg() {
@@ -36,11 +41,11 @@ class SvgChartsV204Test {
                         "bucket_seconds", 1,
                         "first_bucket_ms", now - 60_000L,
                         "buckets", List.of(
-                                List.of(now - 60_000L, 100L, 0L, 55.0),
-                                List.of(now - 59_000L, 130L, 2L, 62.0),
-                                List.of(now - 58_000L, 150L, 1L, 65.0),
-                                List.of(now - 57_000L, 120L, 4L, 70.0),
-                                List.of(now - 56_000L, 145L, 3L, 68.0))))
+                                List.of(now - 60_000L, 100L, 0L, 55.0, 40),
+                                List.of(now - 59_000L, 130L, 2L, 62.0, 60),
+                                List.of(now - 58_000L, 150L, 1L, 65.0, 80),
+                                List.of(now - 57_000L, 120L, 4L, 70.0, 90),
+                                List.of(now - 56_000L, 145L, 3L, 68.0, 100))))
         );
     }
 
@@ -65,27 +70,9 @@ class SvgChartsV204Test {
     }
 
     @Test
-    void transactionBarsRender() {
-        String svg = SvgCharts.transactionThroughputBars(demoAgg());
-        assertTrue(svg.contains("Throughput per transaction"));
-        assertTrue(svg.contains("home"));
-        assertTrue(svg.contains("checkout"));
-    }
-
-    @Test
-    void latencyBarChartRenders() {
-        String svg = SvgCharts.latencyBarChart(demoAgg());
-        assertTrue(svg.contains("Latency percentiles"));
-        assertTrue(svg.contains("p50"));
-        assertTrue(svg.contains("p95"));
-        assertTrue(svg.contains("p99"));
-    }
-
-    @Test
-    void latencyHistogramRenders() {
-        String svg = SvgCharts.latencyHistogram(demoAgg());
-        assertTrue(svg.contains("Latency distribution"));
-        assertTrue(svg.contains("&lt;50") || svg.contains("<50") == false);
+    void vusersLineRendersWhenThreadsPresent() {
+        String svg = SvgCharts.vusersLine(demoAgg());
+        assertTrue(svg.contains("Active virtual users"));
     }
 
     @Test
@@ -102,9 +89,11 @@ class SvgChartsV204Test {
     }
 
     @Test
-    void baselineComparisonEmptyOnNoHistory() {
-        assertEquals("", SvgCharts.baselineComparisonBars(demoAgg(), List.of()));
-        assertEquals("", SvgCharts.baselineComparisonBars(demoAgg(), null));
+    void o11ySeriesRendersPoints() {
+        String svg = SvgCharts.o11ySeries("cpu.utilization",
+                List.of(Map.of("value", 0.42), Map.of("value", 0.55), Map.of("value", 0.61)));
+        assertTrue(svg.contains("cpu.utilization"));
+        assertTrue(svg.startsWith("<svg"));
     }
 
     @Test

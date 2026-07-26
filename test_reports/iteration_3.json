@@ -1,0 +1,38 @@
+{
+  "summary": "v2.0.6 verification: Maven unit tests 87/87 pass (SignalFlow fallback removed). Backend pytest 11/11 pass after fixing missing text/markdown MIME for demo .md files. Frontend home renders all 6 sections and plugin-jar link resolves correctly. Demo HTML contains all required v2.0.6 tokens (Visual Analytics JMeter/Splunk O11y/AWS CloudWatch, Test window, Baseline delta table, etc.) and no forbidden tokens (Latency percentiles / distribution / Throughput per transaction). Performance_Report.md contains all required sections and required table markers. PDF and PPTX correctly 404. Path traversal blocked.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/downloads/demo/Performance_Report.md", "issue": "Was served with Content-Type application/octet-stream instead of text/markdown. Fixed by adding '.md' to the media map in server.py download_demo(). Now returns 'text/markdown; charset=utf-8'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home header", "issues": ["Sub-title still reads 'Enterprise Performance Test Reporting Framework - v2.0.4' but the plugin jar and info API report v2.0.6. Update the version label in the frontend header."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_downloads.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/jmeter-smart-observability-plugin/target/surefire-reports/"
+  ],
+  "action_items": [
+    "Update the frontend home header subtitle from 'v2.0.4' to 'v2.0.6' to match the shipped jar."
+  ],
+  "critical_code_review_comments": [
+    "server.py download_demo() media map was missing '.md' - defaulted to application/octet-stream (fixed in this iteration). Consider centralising the demo/docs/docker MIME maps into one helper to avoid drift.",
+    "server.py: HEAD requests on /api/downloads/demo/{name} return 405. FileResponse+GET works, but some clients (curl -I) will get 405. Optional to add HEAD support."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (added .md -> text/markdown; charset=utf-8 to download_demo media map)",
+    "/app/backend/tests/test_downloads.py (rewritten for v2.0.6 assertions)"
+  ],
+  "success_rate": {"backend": "100% (11/11 pytest, 87/87 mvn)", "frontend": "100% (all 6 sections + jar link verified)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "v2.0.6 release verified end-to-end. Only outstanding item is the cosmetic frontend header version string ('v2.0.4' -> 'v2.0.6'). If main agent fixes it, a quick screenshot re-check is sufficient.",
+  "rca of the issue": "The Markdown MIME regression came from the demo download handler having its own literal media-map that never listed '.md'. When the Markdown exporter added Performance_Report.md, the file fell through to the 'application/octet-stream' default, which failed the review-request MIME assertion. Fix: registered '.md' -> 'text/markdown; charset=utf-8' in the demo handler; verified via curl and pytest."
+}

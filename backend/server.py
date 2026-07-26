@@ -194,6 +194,7 @@ async def download_demo(name: str):
         ".json": "application/json",
         ".csv": "text/csv",
         ".svg": "image/svg+xml",
+        ".md": "text/markdown; charset=utf-8",
     }.get(p.suffix.lower(), "application/octet-stream")
     # HTML is served inline (viewable), everything else as attachment.
     headers = {}
