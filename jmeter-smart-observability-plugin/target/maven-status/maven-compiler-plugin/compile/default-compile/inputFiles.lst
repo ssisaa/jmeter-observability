@@ -6,6 +6,7 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ai/PromptBuilder.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/baseline/BaselineDiff.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/baseline/BaselineStore.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/ci/CiGate.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/cloudwatch/CloudWatchMetricsCollector.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/config/PluginConfig.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/correlate/CorrelationEngine.java
@@ -19,6 +20,7 @@
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/JsonExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/Markdown.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/PdfExporter.java
+/app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/PptxExporter.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/report/ReportGenerator.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/score/Finding.java
 /app/jmeter-smart-observability-plugin/src/main/java/com/smartjmeter/score/HealthScorer.java

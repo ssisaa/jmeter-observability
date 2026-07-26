@@ -105,6 +105,7 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
         // v2.0 - CI gate + PDF + notifiers + extra metric sources
         args.addArgument(PluginConfig.PARAM_FAIL_ON_VERDICT, "");
         args.addArgument(PluginConfig.PARAM_PDF_REPORT_PATH, "Performance_Report.pdf");
+        args.addArgument(PluginConfig.PARAM_PPTX_REPORT_PATH, "Performance_Report.pptx");
         args.addArgument(PluginConfig.PARAM_SLACK_WEBHOOK, "");
         args.addArgument(PluginConfig.PARAM_TEAMS_WEBHOOK, "");
         args.addArgument(PluginConfig.PARAM_EMAIL_SMTP, "");
@@ -307,6 +308,13 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
                 Path pdf = new com.smartjmeter.report.PdfExporter().export(resolvedReport, pdfPath);
                 if (pdf != null) LOG.log(Level.INFO, "PDF report written to {0}", pdf);
             } catch (Exception e) { LOG.log(Level.WARNING, "PDF export failed", e); }
+
+            // PPTX export (best-effort)
+            Path pptxPath = config.resolvePath(config.getPptxReportPath());
+            try {
+                Path pptx = new com.smartjmeter.report.PptxExporter().export(envelope, pptxPath);
+                if (pptx != null) LOG.log(Level.INFO, "PPTX report written to {0}", pptx);
+            } catch (Exception e) { LOG.log(Level.WARNING, "PPTX export failed", e); }
 
             // Extra metric sources (Prometheus/Loki/Elastic/Datadog/NewRelic/Dynatrace/Azure/GCP)
             fetchExtraMetricSources(aggregate);
@@ -603,121 +611,180 @@ public class SmartObservabilityBackendListener extends AbstractBackendListenerCl
             LOG.log(Level.WARNING, "Failed to write JSON output to " + target, e);
         }
     }
-}
-ssPct(Map<String, Object> aggregate) {
-        Map<String, Object> perTxn = (Map<String, Object>) aggregate.getOrDefault("per_transaction", Map.of());
-        if (perTxn.isEmpty()) return 1.0;
-        long pass = 0, total = 0;
-        long slaP95 = config.getSlaP95Ms();
-        for (Object o : perTxn.values()) {
-            if (o instanceof Map<?, ?> row) {
-                Object p95 = row.get("rt_p95_ms");
-                total++;
-                if (p95 instanceof Number n && n.longValue() <= slaP95) pass++;
-            }
-        }
-        return total == 0 ? 1.0 : (double) pass / total;
-    }
 
-    private boolean baselineRegressionPass(Map<String, Object> baselineDiff) {
-        if (baselineDiff == null || !Boolean.TRUE.equals(baselineDiff.get("has_previous"))) return true;
-        Object overall = baselineDiff.get("overall");
-        if (overall instanceof Map<?, ?> m) {
-            Object p95Pct = m.get("rt_p95_pct");
-            if (p95Pct instanceof Number n && Math.abs(n.doubleValue()) > config.getRegressionThresholdPct()) {
-                return false;
-            }
-        }
-        return true;
-    }
+    /* ---------------- v2.0 pipeline: extra metric sources ---------------- */
 
-    private static double o11ySaturation(Map<String, List<Map<String, Object>>> o11y, String... metrics) {
-        if (o11y == null || o11y.isEmpty()) return 0;
-        double max = 0;
-        for (String m : metrics) {
-            for (Map<String, Object> p : o11y.getOrDefault(m, List.of())) {
-                Object v = p.get("value");
-                if (v instanceof Number n && n.doubleValue() > max) max = n.doubleValue();
-            }
-        }
-        return Math.min(1.0, max);
-    }
-
-    private static double o11yGcPauseRatio(Map<String, List<Map<String, Object>>> o11y) {
-        double max = 0;
-        for (Map<String, Object> p : o11y == null ? List.<Map<String, Object>>of() : o11y.getOrDefault("jvm.gc.pause_ms", List.of())) {
-            Object v = p.get("value");
-            if (v instanceof Number n && n.doubleValue() > max) max = n.doubleValue();
-        }
-        // Normalise: 2000 ms of GC pause -> ratio 1.0
-        return Math.min(1.0, max / 2000d);
-    }
-
-    private static double o11yRestartRate(Map<String, List<Map<String, Object>>> o11y) {
-        double sum = 0;
-        for (Map<String, Object> p : o11y == null ? List.<Map<String, Object>>of() : o11y.getOrDefault("k8s.pod.restart_count", List.of())) {
-            Object v = p.get("value");
-            if (v instanceof Number n) sum += n.doubleValue();
-        }
-        // Normalise: 5 restarts -> ratio 1.0
-        return Math.min(1.0, sum / 5d);
-    }
-
-    private static double observabilityCoverage(Map<String, Object> correlation,
-                                                Map<String, List<Map<String, Object>>> o11y,
-                                                Map<String, Object> cloudwatch) {
-        int have = 0, total = 3;
-        if (correlation != null && !correlation.isEmpty()) have++;
-        if (o11y != null && !o11y.isEmpty()) have++;
-        if (cloudwatch != null && !cloudwatch.isEmpty()) have++;
-        return total == 0 ? 0 : (double) have / total;
-    }
-
-    private static double error_rate(Map<String, Object> aggregate) {
-        Object overall = aggregate.get("overall");
-        if (overall instanceof Map<?, ?> m) {
-            Object v = m.get("error_rate");
-            if (v instanceof Number n) return n.doubleValue();
-        }
-        return 0;
-    }
-
-    /* ---------------- helpers ---------------- */
-
-    private JMeterMetric toMetric(SampleResult result) {
-        JMeterMetric metric = new JMeterMetric();
-        metric.setTestName(config.getTestName());
-        metric.setTransaction(result.getSampleLabel());
-        metric.setResponseTime(result.getTime());
-        metric.setLatency(result.getLatency());
-        metric.setBytesSent(result.getSentBytes());
-        metric.setBytesReceived(result.getBytesAsLong());
-        metric.setSuccess(result.isSuccessful());
-        metric.setTimestamp(result.getTimeStamp());
-        metric.setEnvironment(config.getEnvironment());
-        metric.setApplication(config.getApplication());
-        metric.setResponseCode(result.getResponseCode());
-        metric.setThreadName(result.getThreadName());
-        return metric;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static long extractLong(Map<String, Object> aggregate, String key, long defaultVal) {
-        Object overall = aggregate.get("overall");
-        if (!(overall instanceof Map)) return defaultVal;
-        Object v = ((Map<String, Object>) overall).get(key);
-        if (v instanceof Number n) return n.longValue();
-        return defaultVal;
-    }
-
-    private static void writeJson(Path target, Object body) {
+    /**
+     * Optional user-declared metric backends (Prometheus, Loki, Elastic,
+     * Datadog, New Relic, Dynatrace, Azure Monitor, GCP Ops).
+     * Config JSON shape: {@code [{"backend":"prometheus","baseUrl":"...","headers":{...},"queries":{"cpu":"avg(rate(...))"},"outPath":"prom.json"}, ...]}
+     * All calls are best-effort and never abort the teardown.
+     */
+    private void fetchExtraMetricSources(Map<String, Object> aggregate) {
+        String json = config.getMetricSourcesJson();
+        if (json == null || json.isBlank() || "[]".equals(json.trim())) return;
+        long start = extractLong(aggregate, "start_ms", System.currentTimeMillis() - 60_000);
+        long stop  = extractLong(aggregate, "stop_ms", System.currentTimeMillis());
+        if (stop <= start) stop = start + 60_000;
         try {
-            if (target.getParent() != null) {
-                Files.createDirectories(target.getParent());
+            List<Map<String, Object>> sources = MAPPER.readValue(json,
+                    MAPPER.getTypeFactory().constructCollectionType(List.class, Map.class));
+            for (Map<String, Object> src : sources) {
+                String backend = String.valueOf(src.getOrDefault("backend", "")).trim();
+                String baseUrl = String.valueOf(src.getOrDefault("baseUrl", "")).trim();
+                if (backend.isEmpty() || baseUrl.isEmpty()) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, String> headers = (Map<String, String>) src.getOrDefault("headers", Map.of());
+                @SuppressWarnings("unchecked")
+                Map<String, String> queries = (Map<String, String>) src.getOrDefault("queries", Map.of());
+                String outPath = String.valueOf(src.getOrDefault("outPath", backend + "-metrics.json"));
+                try {
+                    com.smartjmeter.metrics.GenericHttpMetricsCollector coll =
+                            new com.smartjmeter.metrics.GenericHttpMetricsCollector(
+                                    backend, baseUrl, headers, config.isTlsInsecure());
+                    Map<String, List<Map<String, Object>>> data = coll.query(queries, start, stop);
+                    writeJson(config.resolvePath(outPath), data);
+                    LOG.log(Level.INFO, "{0} metrics written to {1}", new Object[]{backend, outPath});
+                } catch (Exception ex) {
+                    LOG.log(Level.WARNING, "Metric source failed: " + backend, ex);
+                }
             }
-            Files.writeString(target, MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(body));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Failed to write JSON output to " + target, e);
+            LOG.log(Level.WARNING, "Metric_Sources_Json parse failed - skipping extra sources", e);
         }
+    }
+
+    /* ---------------- v2.0 pipeline: notifications ---------------- */
+
+    /**
+     * Fire Slack / Teams / Email / Jira / ServiceNow notifiers when configured.
+     * Each notifier is best-effort and never throws to the caller.
+     */
+    private void fireNotifications(Verdict verdict, Path reportPath) {
+        try {
+            String decision = verdict.level() == null ? "INSUFFICIENT_DATA" : verdict.level().name();
+            com.smartjmeter.notify.Notifier.NotificationPayload payload =
+                    new com.smartjmeter.notify.Notifier.NotificationPayload(
+                            config.getTestName(),
+                            config.getEnvironment(),
+                            config.getApplication(),
+                            decision,
+                            verdict.productionConfidence(),
+                            verdict.riskScore(),
+                            verdict.rationale(),
+                            reportPath == null ? "" : reportPath.toUri().toString(),
+                            reportPath == null ? "" : reportPath.toString(),
+                            Map.of()
+                    );
+
+            List<com.smartjmeter.notify.Notifier> notifiers = new ArrayList<>();
+
+            String slack = config.getSlackWebhookUrl();
+            if (slack != null && !slack.isBlank()) {
+                notifiers.add(new com.smartjmeter.notify.Notifiers.SlackNotifier(slack, config.isTlsInsecure()));
+            }
+            String teams = config.getTeamsWebhookUrl();
+            if (teams != null && !teams.isBlank()) {
+                notifiers.add(new com.smartjmeter.notify.Notifiers.TeamsNotifier(teams, config.isTlsInsecure()));
+            }
+
+            // Email_Smtp format:  host:port|user|pass|tls  (tls = true|false)
+            String smtp = config.getEmailSmtp();
+            String fromTo = config.getEmailFromTo(); // format: from|to1,to2
+            if (smtp != null && !smtp.isBlank() && fromTo != null && !fromTo.isBlank()) {
+                String[] s = smtp.split("\\|", -1);
+                String[] ft = fromTo.split("\\|", -1);
+                if (s.length >= 1 && ft.length >= 2) {
+                    String[] hp = s[0].split(":", 2);
+                    String host = hp[0];
+                    int port = hp.length > 1 ? parseIntSafe(hp[1], 587) : 587;
+                    String user = s.length > 1 ? s[1] : "";
+                    String pass = s.length > 2 ? s[2] : "";
+                    boolean tls = s.length > 3 && Boolean.parseBoolean(s[3]);
+                    notifiers.add(new com.smartjmeter.notify.Notifiers.EmailNotifier(
+                            host, port, user, pass, ft[0], ft[1], tls));
+                }
+            }
+
+            // Jira_Config format: baseUrl|projectKey|issueType|email|token
+            String jira = config.getJiraConfig();
+            if (jira != null && !jira.isBlank()) {
+                String[] j = jira.split("\\|", -1);
+                if (j.length >= 5) {
+                    notifiers.add(new com.smartjmeter.notify.Notifiers.JiraNotifier(
+                            j[0], j[1], j[2], j[3], j[4], config.isTlsInsecure()));
+                }
+            }
+
+            // ServiceNow_Config format: instanceUrl|user|pass|table
+            String snow = config.getServiceNowConfig();
+            if (snow != null && !snow.isBlank()) {
+                String[] n = snow.split("\\|", -1);
+                if (n.length >= 3) {
+                    String table = n.length > 3 ? n[3] : "incident";
+                    notifiers.add(new com.smartjmeter.notify.Notifiers.ServiceNowNotifier(
+                            n[0], n[1], n[2], table, config.isTlsInsecure()));
+                }
+            }
+
+            for (com.smartjmeter.notify.Notifier n : notifiers) {
+                if (n.isConfigured()) {
+                    try { n.notify(payload); LOG.log(Level.INFO, "Notified via {0}", n.name()); }
+                    catch (Exception ex) { LOG.log(Level.WARNING, "Notifier " + n.name() + " failed", ex); }
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Notification pipeline failed", e);
+        }
+    }
+
+    /* ---------------- v2.0 pipeline: CI gate ---------------- */
+
+    /**
+     * When {@code Fail_On_Verdict} is configured, write a machine-readable
+     * gate file and set a system property so a wrapping CLI (e.g. the
+     * {@code CiGate} runner) can decide the JVM exit code without killing
+     * the current test process.
+     *
+     * <p>Value semantics: comma-separated list of verdicts that should fail
+     * the build. Common configs: {@code NO_GO} or {@code NO_GO,GO_WITH_CONDITIONS}.</p>
+     */
+    private void applyCiGate(Verdict verdict, Path outputDir) {
+        String failList = config.getFailOnVerdict();
+        if (failList == null || failList.isBlank()) return;
+        String decision = verdict.level() == null ? "INSUFFICIENT_DATA" : verdict.level().name();
+        boolean shouldFail = false;
+        for (String v : failList.split(",")) {
+            if (v.trim().equalsIgnoreCase(decision)) { shouldFail = true; break; }
+        }
+        int exitCode = switch (decision) {
+            case "NO_GO" -> 3;
+            case "GO_WITH_CONDITIONS" -> 2;
+            case "GO" -> 0;
+            default -> 1;
+        };
+        try {
+            Map<String, Object> gate = new LinkedHashMap<>();
+            gate.put("verdict", decision);
+            gate.put("shouldFail", shouldFail);
+            gate.put("exitCode", shouldFail ? exitCode : 0);
+            gate.put("failOnVerdict", failList);
+            gate.put("productionConfidence", verdict.productionConfidence());
+            gate.put("riskScore", verdict.riskScore());
+            gate.put("rationale", verdict.rationale());
+            writeJson(outputDir.resolve("ci-gate.json"), gate);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to write ci-gate.json", e);
+        }
+        System.setProperty("smart_observability.gate.exit_code", String.valueOf(shouldFail ? exitCode : 0));
+        System.setProperty("smart_observability.gate.verdict", decision);
+        if (shouldFail) {
+            LOG.log(Level.WARNING, "CI gate: verdict {0} matches Fail_On_Verdict={1} (exit code {2})",
+                    new Object[]{decision, failList, exitCode});
+        }
+    }
+
+    private static int parseIntSafe(String s, int defaultVal) {
+        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return defaultVal; }
     }
 }

@@ -41,22 +41,23 @@ Enterprise smoke run with Groq (llama-3.3-70b-versatile) against `smoke.jmx`:
 - Screenshot captured at `/tmp/enterprise_report_top.png`.
 
 ## Tests
-- **42/42 pass** (`mvn clean test`).
+- **51/51 pass** (`mvn clean test`) as of v2.0.0.
 
 ## Deliverable
-- `target/jmeter-smart-observability-plugin-1.0.0.jar` (~16 MB with AWS SDK) - drop into `$JMETER_HOME/lib/ext/`.
+- `target/jmeter-smart-observability-plugin-2.0.0.jar` (~41 MB fat jar) - drop into `$JMETER_HOME/lib/ext/`.
 - `docs/ENTERPRISE_ARCHITECTURE.md` (52 KB) - Principal-Architect design.
 
+## v2.0.0 (this release - P0 + P1)
+Feb 2026:
+- **PDF export** — `report.PdfExporter` renders the HTML report via openhtmltopdf/PDFBox.
+- **PPTX export** — `report.PptxExporter` produces a 5-slide executive deck (title / verdict / scores / findings / rollout) via Apache POI XSLF.
+- **Notifiers** — `notify.Notifiers` ships five sinks: Slack webhook, Teams MessageCard, SMTP email (Jakarta Mail), Jira REST v3, ServiceNow Table API. All best-effort, never throw.
+- **CI gate** — `Fail_On_Verdict` param writes `ci-gate.json` at teardown; standalone `com.smartjmeter.ci.CiGate` CLI evaluates it and exits 0 (GO) / 2 (GO_WITH_CONDITIONS) / 3 (NO_GO) / 1 (unknown).
+- **Extra metric sources scaffolding** — `metrics.GenericHttpMetricsCollector` covers Prometheus, Loki, Elastic, Datadog, New Relic, Dynatrace, Azure Monitor, GCP Ops through a single generic HTTP+JSON shape, driven by the `Metric_Sources_Json` param.
+
 ## Not yet implemented (backlog)
-- PDF + PPTX exports (heavy libs; HTML+CSS is print-safe today)
-- Analysis Service split for horizontal scale (documented in the architecture doc)
-- Slack / Teams / Jira / ServiceNow notification integrations
-- Waterfall / Sankey / dependency map SVG charts
-- Multi-cloud collectors (Azure Monitor, GCP Ops)
-- APM connectors (Datadog, Dynatrace, New Relic)
-- Prometheus / Elastic / Loki collectors
-- Regression prediction + capacity forecast ML models
-- CI gate mode (non-zero exit on `NO_GO`)
+- **v2.0.1 (P2)** — Wire named per-backend collectors (Azure Monitor, GCP Ops, Datadog, Dynatrace, New Relic, Prometheus, Loki, Elastic) into the enterprise report sections + dedicated health scorers + explicit rule engine coverage.
+- **v2.0.2 (P3)** — Waterfall / Sankey / dependency map SVG charts; sequence-model regression prediction + quantile-regression capacity forecast; separate Analysis Service for horizontal scale.
 
 ## Personas served
 - CIO / CTO / Chief Architect / Engineering Director: page-one verdict + health scores

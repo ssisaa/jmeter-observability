@@ -49,6 +49,7 @@ public class PluginConfig {
     // v2.0 - CI gate + PDF + notifiers + extra metric sources
     public static final String PARAM_FAIL_ON_VERDICT = "Fail_On_Verdict";
     public static final String PARAM_PDF_REPORT_PATH = "Pdf_Report_Path";
+    public static final String PARAM_PPTX_REPORT_PATH = "Pptx_Report_Path";
     public static final String PARAM_SLACK_WEBHOOK = "Slack_Webhook_URL";
     public static final String PARAM_TEAMS_WEBHOOK = "Teams_Webhook_URL";
     public static final String PARAM_EMAIL_SMTP = "Email_Smtp";
@@ -216,6 +217,7 @@ public class PluginConfig {
                 .csvReportPath(ctx.getParameter(PARAM_CSV_REPORT_PATH, "Performance_Report.csv"))
                 .putRaw(PARAM_FAIL_ON_VERDICT, ctx.getParameter(PARAM_FAIL_ON_VERDICT, ""))
                 .putRaw(PARAM_PDF_REPORT_PATH, ctx.getParameter(PARAM_PDF_REPORT_PATH, "Performance_Report.pdf"))
+                .putRaw(PARAM_PPTX_REPORT_PATH, ctx.getParameter(PARAM_PPTX_REPORT_PATH, "Performance_Report.pptx"))
                 .putRaw(PARAM_SLACK_WEBHOOK, ctx.getParameter(PARAM_SLACK_WEBHOOK, ""))
                 .putRaw(PARAM_TEAMS_WEBHOOK, ctx.getParameter(PARAM_TEAMS_WEBHOOK, ""))
                 .putRaw(PARAM_EMAIL_SMTP, ctx.getParameter(PARAM_EMAIL_SMTP, ""))
@@ -297,6 +299,7 @@ public class PluginConfig {
     public String getCsvReportPath() { return csvReportPath; }
     public String getFailOnVerdict() { return raw(PARAM_FAIL_ON_VERDICT, ""); }
     public String getPdfReportPath() { return raw(PARAM_PDF_REPORT_PATH, "Performance_Report.pdf"); }
+    public String getPptxReportPath() { return raw(PARAM_PPTX_REPORT_PATH, "Performance_Report.pptx"); }
     public String getSlackWebhookUrl() { return raw(PARAM_SLACK_WEBHOOK, ""); }
     public String getTeamsWebhookUrl() { return raw(PARAM_TEAMS_WEBHOOK, ""); }
     public String getEmailSmtp() { return raw(PARAM_EMAIL_SMTP, ""); }

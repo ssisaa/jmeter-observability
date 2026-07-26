@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.smartjmeter.splunk.AsyncBatchingHECClientTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.005 s -- in com.smartjmeter.splunk.AsyncBatchingHECClientTest
